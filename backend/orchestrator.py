@@ -99,7 +99,7 @@ class Runner(object):
 
     def _execute(self, step, target, second_pass=False):
         if MODE == "mock":
-            return self._run_mock(step, second_pass)
+            return self._run_mock(step, second_pass, target)
         return self._run_ansible(step, target)
 
     def _idempotency_check(self, step, target):
@@ -119,23 +119,38 @@ class Runner(object):
         state.set_status(sid, "success", idem=idem)
         emit_status(sid, "success", idem=idem)
 
-    def _run_mock(self, step, second_pass=False):
+    def _mock_hosts(self, target):
+        """mock 출력에 쓸 대상 호스트 목록 — 선택한 노드를 반영한다."""
+        if target and target != "all":
+            return [target]
+        try:
+            from . import inventory  # 지연 임포트(순환 방지)
+            names = [n["name"] for n in inventory.read_inventory().get("nodes", []) if n.get("name")]
+            if names:
+                return names
+        except Exception:  # noqa: BLE001 — mock 표시용, 실패해도 기본값 사용
+            pass
+        return ["vcs-node1", "vcs-node2"]
+
+    def _run_mock(self, step, second_pass=False, target="all"):
+        hosts = self._mock_hosts(target)
         changed = 0 if second_pass else 1
-        task_line = "ok: [vcs-node1]" if second_pass else "changed: [vcs-node1]"
-        lines = [
-            "PLAY [vcs] " + "*" * 30,
-            "TASK [Gathering Facts] " + "*" * 20,
-            "ok: [vcs-node1]",
-            "TASK [{}] ".format(step.name) + "*" * 12,
-            task_line,
-        ]
-        for ln in lines:
+        emit(step.id, "PLAY [vcs] " + "*" * 30)
+        emit(step.id, "TASK [Gathering Facts] " + "*" * 20)
+        for h in hosts:
             if self._cancel:
                 break
-            emit(step.id, ln)
-            time.sleep(0.15 if second_pass else 0.25)
+            emit(step.id, "ok: [{}]".format(h))
+            time.sleep(0.1 if second_pass else 0.15)
+        emit(step.id, "TASK [{}] ".format(step.name) + "*" * 12)
+        for h in hosts:
+            if self._cancel:
+                break
+            emit(step.id, "{}: [{}]".format("ok" if second_pass else "changed", h))
+            time.sleep(0.1 if second_pass else 0.15)
         emit(step.id, "PLAY RECAP " + "*" * 28)
-        emit(step.id, "vcs-node1 : ok=3 changed={} unreachable=0 failed=0".format(changed))
+        for h in hosts:
+            emit(step.id, "{} : ok=3 changed={} unreachable=0 failed=0".format(h, changed))
         if step.verify_cmd and not second_pass:
             emit(step.id, "[verify] $ {}".format(step.verify_cmd), "verify")
             emit(step.id, "[verify] (mock) OK", "verify")
