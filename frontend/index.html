@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>LTE-R VCS PKG Install Dashboard</title>
+<style>
+  :root{ --bg:#0f1419; --panel:#1a2029; --line:#2a323d; --fg:#d6dde6; --muted:#8a96a3;
+         --pending:#4b5563; --running:#d9a534; --success:#2ea043; --failed:#e5534b; --head:#3b82f6; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Menlo,Consolas,"Noto Sans KR",monospace;background:var(--bg);color:var(--fg)}
+  header{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
+  header h1{font-size:15px;margin:0;font-weight:600}
+  .mode{font-size:11px;padding:2px 8px;border-radius:10px;background:#22303f;color:#7fc4ff;border:1px solid #2f4762}
+  .wrap{display:flex;height:calc(100vh - 49px)}
+  .left{width:54%;overflow:auto;padding:12px;border-right:1px solid var(--line)}
+  .right{flex:1;display:flex;flex-direction:column}
+  .controls{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+  button{background:#222b36;color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:6px 10px;cursor:pointer;font-size:12px}
+  button:hover{border-color:#3d4b5c}
+  button.primary{background:#1f6feb;border-color:#1f6feb;color:#fff}
+  button.danger{background:#7a2620;border-color:#a13b32;color:#ffd9d4}
+  .phase{margin-bottom:14px}
+  .phase h2{font-size:12px;color:var(--muted);margin:0 0 6px;text-transform:uppercase;letter-spacing:.5px}
+  .step{display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid var(--line);border-radius:6px;margin-bottom:5px;background:var(--panel)}
+  .dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto;background:var(--pending)}
+  .step.running .dot{background:var(--running);animation:pulse 1s infinite}
+  .step.success .dot{background:var(--success)}
+  .step.failed  .dot{background:var(--failed)}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .sid{color:var(--muted);font-size:11px;width:42px;flex:0 0 auto}
+  .sname{flex:1;font-size:12.5px}
+  .pb{color:var(--muted);font-size:10.5px}
+  .counts{font-size:10.5px;color:var(--muted);width:120px;text-align:right}
+  .reqvar{font-size:9.5px;color:#caa15a}
+  .runbtn{font-size:10px;padding:3px 7px}
+  .logwrap{flex:1;display:flex;flex-direction:column;min-height:0}
+  .logbar{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--panel);font-size:12px}
+  #log{flex:1;overflow:auto;padding:8px 12px;font-size:12px;line-height:1.5;white-space:pre-wrap;word-break:break-all}
+  .l-head{color:#7fb6ff}
+  .l-error{color:#ff8980}
+  .l-warn{color:#e5c07b}
+  .l-verify{color:#9d7bd8}
+  .l-info{color:#c8d1db}
+  .l-step{color:#5a6b7d}
+  #conn{font-size:11px;color:var(--muted)}
+  .ok{color:var(--success)} .bad{color:var(--failed)}
+</style>
+</head>
+<body>
+<header>
+  <h1>LTE-R 녹취서버 · PKG Install Dashboard</h1>
+  <span class="mode" id="mode">mode: ?</span>
+  <span id="conn">● 연결 대기</span>
+</header>
+<div class="wrap">
+  <div class="left">
+    <div class="controls">
+      <button class="primary" onclick="run('all')">▶ 전체 실행</button>
+      <button onclick="run('phase','OS')">OS</button>
+      <button onclick="run('phase','PKG')">PKG</button>
+      <button onclick="run('phase','CFG')">CFG</button>
+      <button class="danger" onclick="stop()">■ 중지</button>
+      <button onclick="reset()">↺ 초기화</button>
+      <button onclick="loadReport()">📋 요약</button>
+    </div>
+    <div id="board"></div>
+  </div>
+  <div class="right">
+    <div class="logwrap">
+      <div class="logbar">
+        <strong>설치 진행 로그</strong>
+        <label><input type="checkbox" id="autoscroll" checked/> 자동 스크롤</label>
+        <button class="runbtn" onclick="clearLog()">지우기</button>
+        <span id="report"></span>
+      </div>
+      <div id="log"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let STEPS = [], PHASES = [];
+const logEl = document.getElementById('log');
+
+async function boot(){
+  const p = await (await fetch('/api/pipeline')).json();
+  STEPS = p.steps; PHASES = p.phases;
+  document.getElementById('mode').textContent = 'mode: ' + p.mode;
+  renderBoard();
+  await refreshStatus();
+  connectSSE();
+}
+
+function renderBoard(){
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  PHASES.forEach(ph=>{
+    const steps = STEPS.filter(s=>s.phase===ph.key);
+    const div = document.createElement('div');
+    div.className = 'phase';
+    div.innerHTML = '<h2>'+ph.label+'</h2>';
+    steps.forEach(s=>{
+      const req = (s.required_vars&&s.required_vars.length)?'<span class="reqvar">⚑'+s.required_vars.join(',')+'</span>':'';
+      const el = document.createElement('div');
+      el.className='step'; el.id='step-'+s.id;
+      el.innerHTML =
+        '<span class="dot"></span>'+
+        '<span class="sid">'+s.id+'</span>'+
+        '<span class="sname">'+s.name+' '+req+'<div class="pb">'+s.playbook+'</div></span>'+
+        '<span class="counts" id="cnt-'+s.id+'"></span>'+
+        '<button class="runbtn" onclick="run(\'step\',\''+s.id+'\')">▶</button>';
+      div.appendChild(el);
+    });
+    board.appendChild(div);
+  });
+}
+
+async function refreshStatus(){
+  const d = await (await fetch('/api/status')).json();
+  Object.values(d.steps).forEach(applyStatus);
+}
+function applyStatus(s){
+  const el = document.getElementById('step-'+s.step_id); if(!el) return;
+  el.classList.remove('running','success','failed');
+  if(s.status&&s.status!=='pending') el.classList.add(s.status);
+  const c = document.getElementById('cnt-'+s.step_id);
+  if(c && (s.ok||s.changed||s.failed))
+    c.textContent = 'ok='+(s.ok||0)+' chg='+(s.changed||0)+' fail='+(s.failed||0);
+}
+
+function connectSSE(){
+  const es = new EventSource('/api/logs/stream');
+  const conn = document.getElementById('conn');
+  es.onopen = ()=>{ conn.textContent='● 연결됨'; conn.className='ok'; };
+  es.onerror= ()=>{ conn.textContent='● 재연결...'; conn.className='bad'; };
+  es.onmessage = (e)=>{
+    let ev; try{ ev=JSON.parse(e.data); }catch(_){ return; }
+    if(ev.type==='log') addLog(ev.line, ev.level, ev.step);
+    else if(ev.type==='status') applyStatus({step_id:ev.step, status:ev.status, ok:ev.ok, changed:ev.changed, failed:ev.failed});
+    else if(ev.type==='done') addLog('═══ 실행 종료: '+ev.status+' ═══','head');
+  };
+}
+
+function addLog(line, level, step){
+  const div=document.createElement('div');
+  div.className='l-'+(level||'info');
+  div.textContent=(step?('['+step+'] '):'')+line;
+  logEl.appendChild(div);
+  if(document.getElementById('autoscroll').checked) logEl.scrollTop=logEl.scrollHeight;
+  while(logEl.childNodes.length>4000) logEl.removeChild(logEl.firstChild);
+}
+function clearLog(){ logEl.innerHTML=''; }
+
+async function run(scope, id){
+  const body={scope:scope}; if(id) body.id=id;
+  const r=await fetch('/api/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(!r.ok){ const e=await r.json(); addLog('⚠ '+(e.error||'실행 실패'),'warn'); }
+}
+async function stop(){ await fetch('/api/stop',{method:'POST'}); }
+async function reset(){
+  const r=await fetch('/api/reset',{method:'POST'});
+  if(r.ok){ clearLog(); await refreshStatus(); renderBoard(); await refreshStatus(); }
+  else { const e=await r.json(); addLog('⚠ '+(e.error||'초기화 실패'),'warn'); }
+}
+async function loadReport(){
+  const d=await (await fetch('/api/report')).json();
+  const s=d.summary;
+  document.getElementById('report').innerHTML=
+    ' 성공 <span class="ok">'+(s.success||0)+'</span> / 실패 <span class="bad">'+(s.failed||0)+
+    '</span> / 대기 '+(s.pending||0);
+}
+boot();
+</script>
+</body>
+</html>

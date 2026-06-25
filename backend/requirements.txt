@@ -1,0 +1,12 @@
+# CentOS7 / WSL 시스템 Python 3.6 호환 핀 (폐쇄망 vendoring 대상)
+# 설치(개발 PC, 인터넷 가능 시):  python3 -m pip install -r backend/requirements.txt
+# 폐쇄망 반입:  pip download -r backend/requirements.txt -d vendor/  → 대상서버에서 --no-index 설치
+fastapi==0.83.0
+starlette==0.19.1
+uvicorn==0.16.0
+pydantic==1.9.2
+anyio==3.6.2
+sniffio==1.2.0
+click==8.0.4
+h11==0.13.0
+typing-extensions==4.1.1

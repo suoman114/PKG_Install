@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+backend/state.db
+*.db
+vendor/
+.venv/
+reports/
