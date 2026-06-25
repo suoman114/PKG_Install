@@ -114,18 +114,21 @@ def main():
     gs = c.post("/api/git/stop").get_json()
     check("git stop idle is no-op", gs.get("stopping") is False, str(gs))
     iv = c.get("/api/inventory").get_json()
-    iv["nodes"][0]["ansible_host"] = "10.1.2.3"
+    # 127.0.0.1 → 즉시 refused(빠름). 연결확인은 mock에서도 실제 TCP를 찌른다.
+    for n in iv["nodes"]:
+        n["ansible_host"] = "127.0.0.1"
     c.post("/api/inventory", json=iv)
     nc = c.post("/api/nodes/check", json={"target": "all"})
     check("node check started", nc.status_code == 200, str(nc.status_code))
-    deadline = time.time() + 15
+    deadline = time.time() + 20
     plog = []
     while time.time() < deadline:
         plog = [l["line"] for l in c.get("/api/logs?after_id=0").get_json()["logs"] if l["step_id"] == "ping"]
         if any("연결 확인 종료" in x for x in plog):
             break
         time.sleep(0.2)
-    check("node check ran for nodes", any("연결 가능" in x for x in plog), str(plog[-1:]))
+    check("node check really probes (✓/✗ per node)",
+          any(("TCP 연결 가능" in x or "연결 불가" in x) for x in plog), str(plog[-2:]))
 
     print("[7] file editor (list/read/write/guards)")
     fpaths = [f["path"] for f in c.get("/api/files").get_json()["files"]]

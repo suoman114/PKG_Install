@@ -55,13 +55,14 @@ chmod +x run_dev.sh
 ## 4. 실행 모드
 | 모드 | 명령 | 설명 |
 |------|------|------|
-| `mock` | `./run_dev.sh` | 노드 없이 가짜 진행 로그. 대시보드 UI/흐름 개발용(기본) |
+| `mock` | `./run_dev.sh` | **시뮬레이션**(노드 없이 가짜 로그, 항상 성공). UI/흐름 개발용(기본). 실제 SSH·설치 안 함 |
 | `check` | `DASHBOARD_MODE=check ./run_dev.sh` | `ansible-playbook --check`(dry-run). ansible 설치 필요 |
 | `real` | `DASHBOARD_MODE=real ./run_dev.sh` | 실제 ansible 실행. 인벤토리 노드 SSH 접근 필요 |
 
 **노드 연결 확인(🔌)**: ▶ 설치 탭에서 `대상` 선택 후 **🔌 연결 확인** → 각 노드의 SSH(22) 도달성을 확인.
-- 1차: TCP 22 포트 도달성(인증·ansible 불필요 — 네트워크/방화벽 확인). 2차(real/check + ansible 설치 시): `ansible -m ping`으로 SSH 인증 + 원격 파이썬 확인.
-- mock 모드에선 가짜 성공. 결과는 로그에 `✓/✗`로 표시.
+- 1차: TCP 22 포트 도달성 — **mock 모드에서도 실제로 확인**(인증·ansible 불필요, 네트워크/방화벽 점검). 결과 `✓/✗`.
+- 2차(real/check + ansible 설치 시): `ansible -m ping`으로 SSH 인증 + 원격 파이썬까지 확인.
+- ⚠ **파이프라인 실행과 혼동 금지**: `mode=mock` 파이프라인은 시뮬레이션이라 SSH/설치 없이 항상 성공으로 표시됨. **실제 연결 여부는 🔌 연결 확인으로 점검**하세요.
 
 **HA 2노드 / 멱등성**: 파이프라인 컨트롤의 `대상` 드롭다운으로 특정 노드만(`--limit`) 실행할 수 있고,
 `멱등성 2회` 체크 시 각 멱등 step을 2회차 실행해 `changed=0`(통과) 여부를 step·보고서에 기록한다.
