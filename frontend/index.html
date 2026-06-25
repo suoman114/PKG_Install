@@ -85,7 +85,7 @@
       <div id="nodes"></div>
       <div class="gitrow">
         <button onclick="addNode()">+ 노드</button>
-        <button class="primary" onclick="saveInventory()">💾 인벤토리 저장</button>
+        <button id="invSaveBtn" class="primary" onclick="saveInventory()">💾 인벤토리 저장</button>
       </div>
       <div class="githint" id="invhint">—</div>
     </details>
@@ -201,9 +201,21 @@ async function loadInventory(){
 function populateTargets(){
   const sel=document.getElementById('target'); if(!sel) return;
   const cur=sel.value;
-  sel.innerHTML='<option value="all">전체(2노드)</option>'+
-    (INV.nodes||[]).map(n=>'<option value="'+esc(n.name)+'">'+esc(n.name)+'</option>').join('');
-  if(cur) sel.value=cur;
+  const names=(INV.nodes||[]).map(n=>n.name).filter(Boolean);
+  sel.innerHTML='<option value="all">전체('+names.length+'노드)</option>'+
+    names.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join('');
+  sel.value = (cur==='all'||names.indexOf(cur)>=0) ? cur : 'all';
+}
+let invDirty=false;
+function markInvDirty(){
+  invDirty=true;
+  const b=document.getElementById('invSaveBtn');
+  if(b){ b.textContent='💾 인벤토리 저장 ●'; b.classList.add('danger'); }
+}
+function clearInvDirty(){
+  invDirty=false;
+  const b=document.getElementById('invSaveBtn');
+  if(b){ b.textContent='💾 인벤토리 저장'; b.classList.remove('danger'); }
 }
 function esc(s){ return (s==null?'':String(s)).replace(/"/g,'&quot;'); }
 function renderNodes(){
@@ -233,6 +245,8 @@ function renderNodes(){
       if(k==='optical_nics') INV.nodes[i][k]=v.split(',').map(s=>s.trim()).filter(Boolean);
       else if(k==='server_id') INV.nodes[i][k]=(v.trim()===''?null:(/^\d+$/.test(v.trim())?parseInt(v,10):v.trim()));
       else INV.nodes[i][k]=v;
+      if(k==='name') populateTargets();   // 노드명 변경 즉시 대상 드롭다운 반영
+      markInvDirty();
     });
   });
 }
@@ -242,9 +256,14 @@ function fld(i,k,label,v){
 function addNode(){
   const n=(INV.nodes||[]).length+1;
   INV.nodes.push({name:'vcs-node'+n, ansible_host:'', server_id:n, peer_ip:'', app_user:'vcs', ramdisk_size:'10g', optical_nics:[]});
-  renderNodes();
+  renderNodes(); populateTargets(); markInvDirty();
+  setInvHint('노드 추가됨 ('+INV.nodes.length+') — 변경 적용하려면 💾 저장','warn');
 }
-function removeNode(i){ INV.nodes.splice(i,1); renderNodes(); }
+function removeNode(i){
+  const nm=(INV.nodes[i]||{}).name||'';
+  INV.nodes.splice(i,1); renderNodes(); populateTargets(); markInvDirty();
+  setInvHint('노드 삭제됨 ('+nm+') — 변경 적용하려면 💾 저장','warn');
+}
 function useAssetDest(){
   const d=document.getElementById('asset_dest').value.trim();
   if(d){ document.getElementById('g_asset_root').value=d;
@@ -264,7 +283,7 @@ async function saveInventory(){
     addLog('⚠ 인벤토리 저장 실패: '+((d.errors&&d.errors.join(' / '))||d.error||''),'warn');
     return;
   }
-  INV=d; renderNodes(); populateTargets();
+  INV=d; renderNodes(); populateTargets(); clearInvDirty();
   setInvHint('✓ 저장됨 ('+(d.nodes||[]).length+' 노드) — hosts.ini / host_vars 재생성', 'ok');
   addLog('인벤토리 저장됨 ('+(d.nodes||[]).length+' 노드)','verify');
 }
