@@ -17,16 +17,18 @@ CLAUDE.md §2 아키텍처를 구현한다. **폐쇄망 + CentOS7 시스템 Pyth
   - `GET /api/status`, `GET /api/logs`, `GET /api/logs/stream` (SSE)
   - `GET /api/report` (간이 집계 → 정식 보고서는 report-agent)
   - `GET /api/git`, `POST /api/git/config`, `POST /api/git/sync` (자산 동기화)
+  - `GET/POST /api/inventory` (노드/HA 구조화 편집 → hosts.ini·host_vars 재생성)
 - `backend/orchestrator.py`: `ansible-playbook` subprocess 실행(스레드), **stdout 라인 캡처→이벤트 버스**, RECAP 파싱(changed/ok/failed), `mock|check|real` 모드.
 - `backend/gitassets.py`: 사내망에서 git clone/pull로 RPM/파일 선반입(asset_dest).
+- `backend/inventory.py`: 인벤토리 구조화 읽기/쓰기(PyYAML 무의존, 템플릿 재생성+검증).
 - `backend/events.py`: 공용 이벤트 버스(queue 기반 SSE 브로드캐스트).
 - `backend/pipeline.py`: §3 표를 step 메타 리스트로(코드 단일 진실).
 - `backend/state.py`: SQLite — step 상태, 로그, 실행 이력, settings(git 설정).
 
 ## 남은 작업(백로그)
-- 인벤토리 **편집/저장** UI(현재 읽기 전용) — server_id/peer_ip/광NIC 폼.
 - mock 실패 주입 토글(실패/재시도 UI 검증).
 - step별 로그 필터/검증결과 패널.
+- `asset_root`(인벤토리) ↔ git `asset_dest` 매핑(플레이북 하드코딩 경로 변수화).
 
 ## 프론트 산출물
 - 4-Phase 파이프라인 보드: step 카드 + 상태 배지 + 진행률.

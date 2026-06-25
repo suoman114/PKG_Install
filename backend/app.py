@@ -24,7 +24,7 @@ import queue
 
 from flask import Flask, Response, jsonify, request, send_from_directory
 
-from . import gitassets, orchestrator, pipeline, state
+from . import gitassets, inventory, orchestrator, pipeline, state
 from .events import bus
 
 BASE = os.path.dirname(os.path.dirname(__file__))
@@ -58,17 +58,18 @@ def get_status():
 
 @app.route("/api/inventory")
 def get_inventory():
-    out = {"hosts": None, "host_vars": {}}
-    inv = os.path.join(ANSIBLE_DIR, "inventory", "hosts.ini")
-    if os.path.isfile(inv):
-        with open(inv, "r", encoding="utf-8") as f:
-            out["hosts"] = f.read()
-    hv_dir = os.path.join(ANSIBLE_DIR, "inventory", "host_vars")
-    if os.path.isdir(hv_dir):
-        for name in sorted(os.listdir(hv_dir)):
-            with open(os.path.join(hv_dir, name), "r", encoding="utf-8") as f:
-                out["host_vars"][name] = f.read()
-    return jsonify(out)
+    return jsonify(inventory.read_inventory())
+
+
+@app.route("/api/inventory", methods=["POST"])
+def save_inventory():
+    if orchestrator.runner.running:
+        return jsonify({"error": "실행 중에는 인벤토리를 저장할 수 없습니다."}), 409
+    body = request.get_json(force=True, silent=True) or {}
+    errors = inventory.write_inventory(body)
+    if errors:
+        return jsonify({"error": "검증 실패", "errors": errors}), 400
+    return jsonify(inventory.read_inventory())
 
 
 def _resolve_step_ids(scope, step_id):

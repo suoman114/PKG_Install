@@ -54,17 +54,29 @@ chmod +x run_dev.sh
 - **SQLite**: CentOS7 시스템 SQLite(3.7)는 UPSERT 미지원 → 코드에서 `INSERT OR REPLACE` 사용(대응 완료).
 - **포트 충돌**: `PORT=9000 ./run_dev.sh`.
 
-## 6. 동작 확인 체크리스트
-- [ ] `/` 접속 시 자산 동기화 패널 + 4-Phase 보드(24 step) + mode 배지 표시
+## 6. 인벤토리 편집 (노드 / 2-노드 HA)
+대시보드 좌측 **① 인벤토리** 패널(접기/펼치기):
+- 그룹 변수: `ansible_user`, `asset_root`
+- 노드별 폼: `노드명`, `ansible_host`, `server_id`(HA), `peer_ip`(복제 상대), `app_user`, `ramdisk_size`, `광 NIC`(쉼표 구분)
+- **+ 노드** / **삭제** 로 노드 증감, **💾 인벤토리 저장** 시 `hosts.ini` + `host_vars/<node>.yml` **재생성**
+- 검증: 노드명 형식/중복, `ansible_host` 필수, `server_id` 정수. 실패 시 사유 표시.
+
+> 저장은 표준 템플릿으로 재생성하므로 주석/NTP 플레이스홀더는 유지되지만, 폼 외 커스텀 변수를
+> 직접 넣었다면 `host_vars/*.yml`을 직접 편집하세요(폼 범위 밖 필드는 재생성 시 제외됨).
+
+## 7. 동작 확인 체크리스트
+- [ ] `/` 접속 시 인벤토리 + 자산 동기화 패널 + 4-Phase 보드(24 step) + mode 배지 표시
+- [ ] 인벤토리: 노드 필드 편집 → 저장 → hosts.ini/host_vars 재생성 확인
 - [ ] 자산 동기화: Git Clone/Pull → 로그 스트리밍 → "저장소 존재"
 - [ ] `▶ 전체 실행` → step 순차 running→success, 로그 실시간 스트리밍
 - [ ] `■ 중지` / `↺ 초기화` / `📋 요약` 동작
 
-## 7. 구조
+## 8. 구조
 ```
-backend/app.py          Flask 라우트 + SSE + git 연동 API
+backend/app.py          Flask 라우트 + SSE + git/인벤토리 API
 backend/orchestrator.py 실행 엔진(mock/check/real, 스레드 기반)
 backend/gitassets.py    Git clone/pull 자산 동기화
+backend/inventory.py    인벤토리 구조화 읽기/쓰기(PyYAML 무의존)
 backend/events.py       공용 이벤트 버스(SSE 브로드캐스트)
 backend/pipeline.py     24개 step 정의(단일 진실)
 backend/state.py        SQLite 상태/로그/설정
