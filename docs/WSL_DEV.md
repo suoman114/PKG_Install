@@ -70,6 +70,7 @@ chmod +x run_dev.sh
 - [ ] 자산 동기화: Git Clone/Pull → 로그 스트리밍 → "저장소 존재"
 - [ ] `▶ 전체 실행` → step 순차 running→success, 로그 실시간 스트리밍
 - [ ] `■ 중지` / `↺ 초기화` / `📋 요약` 동작
+- [ ] `📄 보고서 보기`(HTML 새 탭) / `⤓ MD` / `⤓ HTML` 다운로드 — 단계결과·검증·멱등성·실행이력 집계
 
 ## 8. 구조
 ```
@@ -78,6 +79,7 @@ backend/orchestrator.py 실행 엔진(mock/check/real, 스레드 기반)
 backend/gitassets.py    Git clone/pull 자산 동기화
 backend/inventory.py    인벤토리 구조화 읽기/쓰기(PyYAML 무의존)
 backend/events.py       공용 이벤트 버스(SSE 브로드캐스트)
+backend/report.py       결과 보고서 엔진(Markdown/HTML, 멱등성·검증 집계)
 backend/pipeline.py     24개 step 정의(단일 진실)
 backend/state.py        SQLite 상태/로그/설정
 frontend/index.html     대시보드(vanilla JS, 무빌드/무CDN)

@@ -24,7 +24,7 @@ import queue
 
 from flask import Flask, Response, jsonify, request, send_from_directory
 
-from . import gitassets, inventory, orchestrator, pipeline, state
+from . import gitassets, inventory, orchestrator, pipeline, report, state
 from .events import bus
 
 BASE = os.path.dirname(os.path.dirname(__file__))
@@ -138,21 +138,24 @@ def logs_stream():
 
 
 @app.route("/api/report")
-def report():
-    statuses = state.get_all_status()
-    summary = {"success": 0, "failed": 0, "running": 0, "pending": 0, "skipped": 0}
-    for s in statuses.values():
-        summary[s["status"]] = summary.get(s["status"], 0) + 1
-    by_phase = {}
-    for st in pipeline.STEPS:
-        cur = statuses.get(st.id, {})
-        by_phase.setdefault(st.phase, []).append({
-            "id": st.id, "name": st.name, "playbook": st.playbook,
-            "status": cur.get("status", "pending"),
-            "changed": cur.get("changed", 0), "ok": cur.get("ok", 0),
-            "failed": cur.get("failed", 0), "verify": cur.get("verify"),
-        })
-    return jsonify({"mode": orchestrator.MODE, "summary": summary, "by_phase": by_phase})
+def get_report():
+    return jsonify(report.collect())
+
+
+@app.route("/api/report.md")
+def get_report_md():
+    body = report.to_markdown()
+    return Response(body, mimetype="text/markdown", headers={
+        "Content-Disposition": 'attachment; filename="vcs_install_report.md"'})
+
+
+@app.route("/api/report.html")
+def get_report_html():
+    dl = request.args.get("download")
+    headers = {}
+    if dl:
+        headers["Content-Disposition"] = 'attachment; filename="vcs_install_report.html"'
+    return Response(report.to_html(), mimetype="text/html", headers=headers)
 
 
 # ---- Git 자산 동기화 ----

@@ -79,7 +79,7 @@ PKG_Install/
 │   ├── events.py                 # 공용 이벤트 버스(SSE 브로드캐스트)
 │   ├── pipeline.py               # step 정의(§3 표를 코드로)
 │   ├── state.py                  # SQLite 상태/이력/설정
-│   └── report.py                 # (생성예정) 보고서 생성
+│   └── report.py                 # 보고서 생성(Markdown/HTML, 멱등성·검증 집계)
 ├── frontend/                     # 대시보드(SSE 로그, 파이프라인 보드, 자산 동기화)
 ├── assets/                       # git 동기화로 받은 RPM/파일(asset_dest, gitignore)
 ├── vendor/                       # 오프라인 의존성(폐쇄망)
@@ -176,11 +176,11 @@ PKG_Install/
 ---
 
 ## 8. 개발 단계 로드맵 (orchestrator 기본 계획)
-1. **M1 골격**: `pipeline.py`(step 정의=§3 표), `PIPELINE.md`, inventory 예시, ansible.cfg
-2. **M2 엔진**: `orchestrator.py`(ansible 호출/로그 캡처/검증), `state.py`(SQLite)
-3. **M3 대시보드**: FastAPI + SSE 로그 + 파이프라인 보드 + 시작/중지/재시도
-4. **M4 보고서**: `report.py`(단계결과·검증·멱등성 집계 → HTML/MD)
-5. **M5 강화**: Vault/오프라인 vendoring/HA 2노드 시나리오/멱등성 회귀
+1. ~~**M1 골격**~~ ✅: `pipeline.py`(step 정의=§3 표), inventory 예시
+2. ~~**M2 엔진**~~ ✅: `orchestrator.py`(ansible 호출/로그 캡처/검증, 스레드), `state.py`(SQLite)
+3. ~~**M3 대시보드**~~ ✅: **Flask** + SSE 로그 + 파이프라인 보드 + 시작/중지/재시도 + Git 자산동기화 + 인벤토리 편집
+4. ~~**M4 보고서**~~ ✅: `report.py`(단계결과·검증·멱등성 집계 → HTML/MD, `/api/report.md|.html`)
+5. **M5 강화**(진행 예정): Vault/오프라인 vendoring/HA 2노드 시나리오/멱등성 회귀
 
 ---
 

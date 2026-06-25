@@ -160,3 +160,11 @@ def end_run(run_id, status):
             (time.time(), status, run_id),
         )
         _conn.commit()
+
+
+def get_runs(limit=20):
+    with _lock:
+        rows = _conn.execute(
+            "SELECT * FROM runs ORDER BY id DESC LIMIT ?", (limit,)
+        ).fetchall()
+    return [dict(r) for r in rows]

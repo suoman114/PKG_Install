@@ -109,6 +109,9 @@
       <button class="danger" onclick="stop()">■ 중지</button>
       <button onclick="reset()">↺ 초기화</button>
       <button onclick="loadReport()">📋 요약</button>
+      <button onclick="window.open('/api/report.html','_blank')">📄 보고서 보기</button>
+      <button onclick="location.href='/api/report.md'">⤓ MD</button>
+      <button onclick="location.href='/api/report.html?download=1'">⤓ HTML</button>
     </div>
     <div id="board"></div>
   </div>

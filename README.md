@@ -13,8 +13,8 @@ LTE-R(철도 통합무선망) **녹취서버 VCS**를 **폐쇄망**에서 자동
 ```
 ansible/playbooks/   # 실제 설치 작업(00~18) — 단일 진실
 ansible/inventory/   # vcs 그룹, 2노드 HA host_vars
-backend/             # Flask + 오케스트레이션 엔진 + git 자산 동기화 (M3 완료)
-frontend/            # 대시보드(SSE 로그, 4-Phase 보드, 자산 동기화)
+backend/             # Flask + 오케스트레이션 엔진 + git 자산 동기화 + 보고서 (M3·M4)
+frontend/            # 대시보드(SSE 로그, 4-Phase 보드, 자산 동기화, 인벤토리 편집, 보고서)
 docs/                # 분석/파이프라인 문서, WSL 실행 가이드
 ```
 
