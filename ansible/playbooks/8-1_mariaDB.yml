@@ -1,8 +1,8 @@
 - hosts: vcs
   remote_user: root
   vars:
-       new_password: root.123
-       vcsm_password: vcsm.123
+       new_password: "{{ mariadb_root_password }}"
+       vcsm_password: "{{ mariadb_vcsm_password }}"
        database_name: VCSM
        initial_dump: LTE_R_DB_init.sql
  

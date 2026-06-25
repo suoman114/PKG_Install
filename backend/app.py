@@ -24,7 +24,7 @@ import queue
 
 from flask import Flask, Response, jsonify, request, send_from_directory
 
-from . import gitassets, inventory, orchestrator, pipeline, report, state
+from . import gitassets, inventory, orchestrator, pipeline, report, secrets, state
 from .events import bus
 
 BASE = os.path.dirname(os.path.dirname(__file__))
@@ -180,6 +180,22 @@ def git_config():
         asset_dest=body.get("asset_dest"),
     )
     return jsonify(cfg)
+
+
+@app.route("/api/secrets")
+def secrets_get():
+    return jsonify(secrets.status())
+
+
+@app.route("/api/secrets", methods=["POST"])
+def secrets_set():
+    body = request.get_json(force=True, silent=True) or {}
+    ok, msg = secrets.write(body)
+    if not ok:
+        return jsonify({"error": msg}), 400
+    out = secrets.status()
+    out["message"] = msg
+    return jsonify(out)
 
 
 @app.route("/api/git/sync", methods=["POST"])

@@ -86,6 +86,13 @@
       <div class="githint" id="invhint">—</div>
     </details>
 
+    <details class="gitbox" id="secbox">
+      <summary class="gittitle">🔒 시크릿 (비밀번호 — group_vars/vcs.yml · 커밋 안 됨)</summary>
+      <div id="secrows" style="margin-top:8px"></div>
+      <div class="gitrow"><button class="primary" onclick="saveSecrets()">🔒 시크릿 저장</button></div>
+      <div class="githint" id="sechint">—</div>
+    </details>
+
     <div class="gitbox" id="gitbox">
       <div class="gittitle">② 자산 동기화 (사내망 Git → RPM/파일 선반입)</div>
       <div class="gitrow">
@@ -142,7 +149,37 @@ async function boot(){
   await refreshStatus();
   await loadGit();
   await loadInventory();
+  await loadSecrets();
   connectSSE();
+}
+
+async function loadSecrets(){
+  const s=await (await fetch('/api/secrets')).json();
+  const box=document.getElementById('secrows'); box.innerHTML='';
+  s.keys.forEach(k=>{
+    const d=document.createElement('div'); d.className='gitrow';
+    d.innerHTML='<label style="flex:0 0 150px;align-self:center;font-size:11px;color:var(--muted)">'+esc(k.label)+'</label>'+
+      '<input type="password" data-k="'+esc(k.key)+'" autocomplete="new-password" placeholder="'+
+        (k.set?'●●●●● (변경 시 입력)':'미설정 — 입력')+'"/>'+
+      '<span style="flex:0 0 64px;align-self:center;font-size:11px" class="'+(k.set?'ok':'')+'">'+
+        (k.set?'● 설정됨':'○ 미설정')+'</span>';
+    box.appendChild(d);
+  });
+  if(s.vault) setSecHint('vault 암호화됨 — CLI(ansible-vault)에서 편집하세요.','bad');
+  else setSecHint('입력한 값만 갱신(빈 칸은 기존 유지). 평문 저장 — 폐쇄망 전용, 커밋 안 됨.','');
+}
+function setSecHint(m,c){ const e=document.getElementById('sechint'); e.innerHTML=c?'<span class="'+c+'">'+m+'</span>':m; }
+async function saveSecrets(){
+  const body={};
+  document.querySelectorAll('#secrows input').forEach(i=>{ if(i.value) body[i.dataset.k]=i.value; });
+  if(!Object.keys(body).length){ setSecHint('변경할 값이 없습니다.','bad'); return; }
+  const r=await fetch('/api/secrets',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d=await r.json();
+  if(!r.ok){ setSecHint(d.error||'저장 실패','bad'); return; }
+  document.querySelectorAll('#secrows input').forEach(i=>i.value='');
+  addLog('시크릿 저장됨 ('+(d.message||'')+')','verify');
+  await loadSecrets();
+  setSecHint('✓ '+(d.message||'저장됨'),'ok');
 }
 
 let INV = {group:{}, nodes:[]};

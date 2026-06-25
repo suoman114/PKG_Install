@@ -15,7 +15,7 @@
        - name: add users
          rabbitmq_user:
            user: vcm
-           password: vcm.123
+           password: "{{ rmq_vcm_password }}"
            node: "{{inventory_hostname}}"
            configure_priv: .*
            read_priv: .*

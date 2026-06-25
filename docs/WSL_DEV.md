@@ -68,6 +68,14 @@ chmod +x run_dev.sh
 > 저장은 표준 템플릿으로 재생성하므로 주석/NTP 플레이스홀더는 유지되지만, 폼 외 커스텀 변수를
 > 직접 넣었다면 `host_vars/*.yml`을 직접 편집하세요(폼 범위 밖 필드는 재생성 시 제외됨).
 
+### 시크릿(비밀번호)
+좌측 **🔒 시크릿** 패널에서 비밀번호 5종(SSH, MariaDB root/vcsm, 복제, RabbitMQ vcm)을 입력·저장한다.
+- 저장 위치: `ansible/inventory/group_vars/vcs.yml` (vcs 그룹 자동 로드, **.gitignore·0600 권한·커밋 안 됨**)
+- 입력한 값만 갱신(빈 칸은 기존 유지). API는 "설정됨" 여부만 반환하고 **값은 노출하지 않음**.
+- 최초 설정: `cp group_vars/vcs.yml.example group_vars/vcs.yml` 후 편집하거나 패널에서 입력.
+- 강화: `ansible-vault encrypt ansible/inventory/group_vars/vcs.yml` (이 경우 패널은 잠금 표시, CLI로 편집).
+- 플레이북에서 평문 비밀번호는 제거됨 → 시크릿 미설정 시 `real`/`check` 실행은 변수 미정의로 실패(의도된 동작).
+
 ## 7. 동작 확인 체크리스트
 - [ ] `/` 접속 시 인벤토리 + 자산 동기화 패널 + 4-Phase 보드(24 step) + mode 배지 표시
 - [ ] 인벤토리: 노드 필드 편집 → 저장 → hosts.ini/host_vars 재생성 확인
@@ -84,6 +92,7 @@ backend/app.py          Flask 라우트 + SSE + git/인벤토리 API
 backend/orchestrator.py 실행 엔진(mock/check/real, 스레드 기반)
 backend/gitassets.py    Git clone/pull 자산 동기화
 backend/inventory.py    인벤토리 구조화 읽기/쓰기(PyYAML 무의존)
+backend/secrets.py      시크릿(비밀번호) → group_vars/vcs.yml(0600, gitignore)
 backend/events.py       공용 이벤트 버스(SSE 브로드캐스트)
 backend/report.py       결과 보고서 엔진(Markdown/HTML, 멱등성·검증 집계)
 backend/pipeline.py     24개 step 정의(단일 진실)

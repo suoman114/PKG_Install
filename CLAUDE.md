@@ -167,7 +167,7 @@ PKG_Install/
 ---
 
 ## 7. 보안/리팩토링 백로그 (product가 흡수)
-- 평문 비밀번호(`root.123` 등) → **Ansible Vault / 대시보드 입력**으로 이전
+- ~~평문 비밀번호(`root.123` 등) → **대시보드 입력**으로 이전~~ **(완료)** — 0/6/8-1/8-3의 평문 비밀번호 5종을 `group_vars/vcs.yml`(gitignore, 0600) 변수로 외부화. 대시보드 "🔒 시크릿" 패널에서 입력(값은 API로 반환 안 함). 강화 시 `ansible-vault encrypt`. 잔여: 9-1/10-1 OS계정 `{{var1}}.123` 생성 패턴.
 - 버전 경로 하드코딩(RMQ 3.7.13, JDK 1.8.0.362, mariadb el8) → 변수/glob
 - NIC명 하드코딩(18) → 17 자동탐지 결과 재사용
 - ~~사이트 경로 `/root/lter_vcs_gimhae/` → `{{ asset_root }}` 변수화~~ **(완료)** — 플레이북 `src:` 22곳을 `{{ asset_root }}`(그룹변수)로 치환. 대시보드 인벤토리에서 편집, git `asset_dest`와 일치시킬 것.
@@ -180,7 +180,7 @@ PKG_Install/
 2. ~~**M2 엔진**~~ ✅: `orchestrator.py`(ansible 호출/로그 캡처/검증, 스레드), `state.py`(SQLite)
 3. ~~**M3 대시보드**~~ ✅: **Flask** + SSE 로그 + 파이프라인 보드 + 시작/중지/재시도 + Git 자산동기화 + 인벤토리 편집
 4. ~~**M4 보고서**~~ ✅: `report.py`(단계결과·검증·멱등성 집계 → HTML/MD, `/api/report.md|.html`)
-5. **M5 강화**(진행 중): ~~HA 2노드 분리실행(`--limit`)~~ ✅ · ~~멱등성 2회 회귀(changed=0, 보고서 반영)~~ ✅ · Vault(비밀번호) · 오프라인 vendoring(예정)
+5. **M5 강화**(진행 중): ~~HA 2노드 분리실행(`--limit`)~~ ✅ · ~~멱등성 2회 회귀(changed=0, 보고서 반영)~~ ✅ · ~~비밀번호 외부화(group_vars/시크릿 패널)~~ ✅ · 오프라인 vendoring(예정)
 
 ---
 
