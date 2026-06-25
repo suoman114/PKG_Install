@@ -32,9 +32,14 @@ python3 -m pip install --user -r backend/requirements.txt
 ## 2. 실행
 ```bash
 chmod +x run_dev.sh
-./run_dev.sh                      # mock 모드(기본) — 실제 노드 없이 동작
+./run_dev.sh                      # 무조건 실제 연동(real) — ansible 실제 실행
 ```
 브라우저에서 **http://localhost:8800** 접속. (WSL은 localhost가 Windows로 포워딩됨)
+
+> `run_dev.sh`는 **항상 real 모드**로 뜹니다(별도로 `DASHBOARD_MODE` 지정 불필요). 따라서
+> **ansible 설치 + 인벤토리 노드 IP/시크릿(SSH) 설정 + 🔌 연결 확인**이 선행돼야 단계가 성공합니다.
+> ansible 미설치 시 기동은 되지만 실행 단계에서 실패하며, 스크립트가 경고를 출력합니다.
+> (UI/흐름만 시뮬레이션으로 보려면 `DASHBOARD_MODE=mock python3 -m backend.app` 로 직접 기동)
 
 ## 3. 자산 동기화 (Git) 사용법
 대시보드 **⚙ 설정 → 자산 동기화** 패널:
@@ -55,9 +60,9 @@ chmod +x run_dev.sh
 ## 4. 실행 모드
 | 모드 | 명령 | 설명 |
 |------|------|------|
-| `mock` | `./run_dev.sh` | **시뮬레이션**(노드 없이 가짜 로그, 항상 성공). UI/흐름 개발용(기본). 실제 SSH·설치 안 함 |
-| `check` | `DASHBOARD_MODE=check ./run_dev.sh` | `ansible-playbook --check`(dry-run). ansible 설치 필요 |
-| `real` | `DASHBOARD_MODE=real ./run_dev.sh` | 실제 ansible 실행. 인벤토리 노드 SSH 접근 필요 |
+| `real` | `./run_dev.sh` | **기본/고정**. 실제 ansible 실행. 인벤토리 노드 SSH 접근 + ansible 필요 |
+| `check` | `DASHBOARD_MODE=check python3 -m backend.app` | `ansible-playbook --check`(dry-run) |
+| `mock` | `DASHBOARD_MODE=mock python3 -m backend.app` | 시뮬레이션(노드 없이 가짜 로그, 항상 성공) — UI/흐름 개발용 |
 
 **노드 연결 확인(🔌)**: ▶ 설치 탭에서 `대상` 선택 후 **🔌 연결 확인** → 각 노드의 SSH(22) 도달성을 확인.
 - 1차: TCP 22 포트 도달성 — **mock 모드에서도 실제로 확인**(인증·ansible 불필요, 네트워크/방화벽 점검). 결과 `✓/✗`.

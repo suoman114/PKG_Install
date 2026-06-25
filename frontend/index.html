@@ -5,42 +5,44 @@
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>LTE-R VCS PKG Install Dashboard</title>
 <style>
-  :root{ --bg:#0f1419; --panel:#1a2029; --line:#2a323d; --fg:#d6dde6; --muted:#8a96a3;
-         --pending:#4b5563; --running:#d9a534; --success:#2ea043; --failed:#e5534b; --head:#3b82f6; }
+  :root{ --bg:#eef1f6; --panel:#ffffff; --line:#d4dbe4; --fg:#1c2530; --muted:#5f6b7a;
+         --pending:#9aa5b1; --running:#c8861a; --success:#1a8a3a; --failed:#d4332b; --head:#2b6cb0; }
   *{box-sizing:border-box}
   body{margin:0;font-family:Menlo,Consolas,"Noto Sans KR",monospace;background:var(--bg);color:var(--fg)}
   header{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
   header h1{font-size:15px;margin:0;font-weight:600}
-  .mode{font-size:11px;padding:2px 8px;border-radius:10px;background:#22303f;color:#7fc4ff;border:1px solid #2f4762}
+  .mode{font-size:11px;padding:2px 8px;border-radius:10px;background:#e6f0fb;color:#1f6feb;border:1px solid #bcd6f5}
   .wrap{display:flex;height:calc(100vh - 49px)}
   .left{width:54%;overflow:auto;padding:12px;border-right:1px solid var(--line)}
   .right{flex:1;display:flex;flex-direction:column}
   .gitbox{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:10px;margin-bottom:14px}
-  .gittitle{font-size:12px;color:#7fc4ff;margin-bottom:8px;font-weight:600}
+  .gittitle{font-size:12px;color:#2b6cb0;margin-bottom:8px;font-weight:600}
   .gitrow{display:flex;gap:6px;margin-bottom:6px}
-  .gitrow input{flex:1;background:#0f1419;border:1px solid var(--line);border-radius:6px;color:var(--fg);padding:6px 8px;font-size:11.5px;font-family:inherit}
+  .gitrow input{flex:1;background:#f7f9fb;border:1px solid var(--line);border-radius:6px;color:var(--fg);padding:6px 8px;font-size:11.5px;font-family:inherit}
   .githint{font-size:10.5px;color:var(--muted);margin-top:2px}
-  .node{border:1px solid var(--line);border-radius:6px;padding:8px;margin:8px 0;background:#0f1419}
+  .node{border:1px solid var(--line);border-radius:6px;padding:8px;margin:8px 0;background:#f7f9fb}
   .node .nh{display:flex;gap:6px;align-items:center;margin-bottom:6px}
-  .node .nh input{flex:1;font-weight:600;color:#7fc4ff}
+  .node .nh input{flex:1;font-weight:600;color:#2b6cb0}
   .node .grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
   .node .grid input{width:100%;box-sizing:border-box}
   .node .full{grid-column:1 / span 2}
-  .seclabel{font-size:11px;color:#7fc4ff;font-weight:600;margin:12px 0 5px}
+  .seclabel{font-size:11px;color:#2b6cb0;font-weight:600;margin:12px 0 5px}
   .node label{font-size:10px;color:var(--muted);display:block;margin-bottom:1px}
-  .node input{background:#1a2029;border:1px solid var(--line);border-radius:5px;color:var(--fg);padding:5px 7px;font-size:11.5px;font-family:inherit}
-  .xbtn{background:#3a2330;border:1px solid #5a2a3a;color:#ff9bb0;border-radius:5px;cursor:pointer;padding:4px 8px}
-  .sectit{font-size:11px;color:#7fc4ff;font-weight:600;margin-right:4px;align-self:center}
+  .node input{background:#ffffff;border:1px solid var(--line);border-radius:5px;color:var(--fg);padding:5px 7px;font-size:11.5px;font-family:inherit}
+  .xbtn{background:#fdecec;border:1px solid #f3c2c0;color:#c0392b;border-radius:5px;cursor:pointer;padding:4px 8px}
+  .sectit{font-size:11px;color:#2b6cb0;font-weight:600;margin-right:4px;align-self:center}
   .tabs{display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid var(--line)}
   .tab{background:none;border:none;color:var(--muted);padding:9px 18px;cursor:pointer;font-size:14px;font-family:inherit;border-bottom:2px solid transparent;margin-bottom:-1px}
   .tab:hover{color:var(--fg)}
   .tab.active{color:var(--fg);border-bottom-color:#2b6cb0;font-weight:600}
   .tabnote{font-size:11px;color:var(--muted);margin-bottom:12px}
   .controls{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;align-items:center}
-  button{background:#222b36;color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:6px 10px;cursor:pointer;font-size:12px}
-  button:hover{border-color:#3d4b5c}
+  button{background:#eef2f7;color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:6px 10px;cursor:pointer;font-size:12px}
+  button:hover{border-color:#b9c4d0;background:#e3e9f1}
   button.primary{background:#1f6feb;border-color:#1f6feb;color:#fff}
-  button.danger{background:#7a2620;border-color:#a13b32;color:#ffd9d4}
+  button.primary:hover{background:#1a5fd0}
+  button.danger{background:#e5534b;border-color:#d4332b;color:#fff}
+  button.danger:hover{background:#d4332b}
   .phase{margin-bottom:14px}
   .phase h2{font-size:12px;color:var(--muted);margin:0 0 6px;text-transform:uppercase;letter-spacing:.5px}
   .step{display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid var(--line);border-radius:6px;margin-bottom:5px;background:var(--panel)}
@@ -53,17 +55,17 @@
   .sname{flex:1;font-size:12.5px}
   .pb{color:var(--muted);font-size:10.5px}
   .counts{font-size:10.5px;color:var(--muted);width:120px;text-align:right}
-  .reqvar{font-size:9.5px;color:#caa15a}
+  .reqvar{font-size:9.5px;color:#a9760a}
   .runbtn{font-size:10px;padding:3px 7px}
   .logwrap{flex:1;display:flex;flex-direction:column;min-height:0}
   .logbar{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--panel);font-size:12px}
   #log{flex:1;overflow:auto;padding:8px 12px;font-size:12px;line-height:1.5;white-space:pre-wrap;word-break:break-all}
-  .l-head{color:#7fb6ff}
-  .l-error{color:#ff8980}
-  .l-warn{color:#e5c07b}
-  .l-verify{color:#9d7bd8}
-  .l-info{color:#c8d1db}
-  .l-step{color:#5a6b7d}
+  .l-head{color:#1f6feb;font-weight:600}
+  .l-error{color:#c0392b}
+  .l-warn{color:#b9770e}
+  .l-verify{color:#7c3aed}
+  .l-info{color:#2c3540}
+  .l-step{color:#8a96a3}
   #conn{font-size:11px;color:var(--muted)}
   .ok{color:var(--success)} .bad{color:var(--failed)}
 </style>
@@ -124,7 +126,7 @@
         <button id="fileSaveBtn" class="primary" onclick="saveFile()">💾 저장</button>
       </div>
       <textarea id="fileContent" spellcheck="false" placeholder="파일을 선택하면 내용이 로드됩니다."
-        style="width:100%;box-sizing:border-box;height:260px;background:#0f1419;color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:8px;font-family:monospace;font-size:12px;white-space:pre;overflow:auto"></textarea>
+        style="width:100%;box-sizing:border-box;height:260px;background:#f7f9fb;color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:8px;font-family:monospace;font-size:12px;white-space:pre;overflow:auto"></textarea>
       <div class="githint" id="filehint">⚠ 인벤토리 파일(hosts.ini/host_vars)을 직접 편집하면, 이후 ① 인벤토리 저장 시 폼 값으로 덮어쓰여질 수 있습니다.</div>
     </details>
 
