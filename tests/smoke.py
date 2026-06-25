@@ -111,6 +111,8 @@ def main():
     gd = r.get_json()
     check("git_auth set, token never returned",
           gd.get("git_auth") is True and "TOKxyz" not in json.dumps(gd) and "git_token" not in gd)
+    gs = c.post("/api/git/stop").get_json()
+    check("git stop idle is no-op", gs.get("stopping") is False, str(gs))
     iv = c.get("/api/inventory").get_json()
     iv["nodes"][0]["ansible_host"] = "10.1.2.3"
     c.post("/api/inventory", json=iv)
