@@ -51,7 +51,30 @@ def init_db():
                 ended   REAL,
                 status  TEXT
             );
+            CREATE TABLE IF NOT EXISTS settings (
+                key   TEXT PRIMARY KEY,
+                value TEXT
+            );
             """
+        )
+        _conn.commit()
+
+
+def get_setting(key, default=None):
+    with _lock:
+        row = _conn.execute(
+            "SELECT value FROM settings WHERE key=?", (key,)
+        ).fetchone()
+    return row["value"] if row else default
+
+
+def set_setting(key, value):
+    # CentOS7 시스템 SQLite(3.7)는 UPSERT(ON CONFLICT DO UPDATE) 미지원 →
+    # INSERT OR REPLACE 사용 (settings는 key/value 2컬럼이라 안전).
+    with _lock:
+        _conn.execute(
+            "INSERT OR REPLACE INTO settings(key, value) VALUES (?,?)",
+            (key, value),
         )
         _conn.commit()
 

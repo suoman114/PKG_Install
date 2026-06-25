@@ -39,9 +39,9 @@ OS Setup  →  PKG Install  →  Config Setup  →  결과 보고서
 └───────────────┬──────────────────────────────────────────────┘
                 │ REST + SSE/WebSocket
 ┌───────────────▼──────────────────────────────────────────────┐
-│                  Backend API (FastAPI, Python)                 │
+│              Backend API (Flask, Python 3.6 호환)              │
 │  - /api/inventory   - /api/run (phase/step)   - /api/logs(SSE) │
-│  - /api/status      - /api/report                              │
+│  - /api/status      - /api/report   - /api/git (자산 동기화)   │
 └───────┬───────────────────────┬───────────────────┬──────────┘
         │                       │                   │
 ┌───────▼────────┐   ┌──────────▼─────────┐   ┌─────▼──────────┐
@@ -73,12 +73,15 @@ PKG_Install/
 │   │   └── host_vars/<node>.yml  # server_id, peer_ip, NIC명, ramdisk_size ...
 │   └── playbooks/                # 25개 yml (단일 진실)
 ├── backend/
-│   ├── app.py                    # FastAPI 엔트리
-│   ├── orchestrator.py           # 파이프라인 실행/로그 캡처/검증
-│   ├── pipeline.py               # step 정의(§PIPELINE 표를 코드로)
-│   ├── state.py                  # SQLite 상태/이력
-│   └── report.py                 # 보고서 생성
-├── frontend/                     # 대시보드(SSE 로그, 파이프라인 보드)
+│   ├── app.py                    # Flask 엔트리(REST + SSE + git API)
+│   ├── orchestrator.py           # 파이프라인 실행/로그 캡처/검증(스레드 기반)
+│   ├── gitassets.py              # Git clone/pull 자산 동기화(사내망 선반입)
+│   ├── events.py                 # 공용 이벤트 버스(SSE 브로드캐스트)
+│   ├── pipeline.py               # step 정의(§3 표를 코드로)
+│   ├── state.py                  # SQLite 상태/이력/설정
+│   └── report.py                 # (생성예정) 보고서 생성
+├── frontend/                     # 대시보드(SSE 로그, 파이프라인 보드, 자산 동기화)
+├── assets/                       # git 동기화로 받은 RPM/파일(asset_dest, gitignore)
 ├── vendor/                       # 오프라인 의존성(폐쇄망)
 └── .claude/agents/               # 서브에이전트 정의(오케스트레이션)
 ```

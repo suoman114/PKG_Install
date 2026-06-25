@@ -15,7 +15,13 @@
   .wrap{display:flex;height:calc(100vh - 49px)}
   .left{width:54%;overflow:auto;padding:12px;border-right:1px solid var(--line)}
   .right{flex:1;display:flex;flex-direction:column}
-  .controls{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+  .gitbox{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:10px;margin-bottom:14px}
+  .gittitle{font-size:12px;color:#7fc4ff;margin-bottom:8px;font-weight:600}
+  .gitrow{display:flex;gap:6px;margin-bottom:6px}
+  .gitrow input{flex:1;background:#0f1419;border:1px solid var(--line);border-radius:6px;color:var(--fg);padding:6px 8px;font-size:11.5px;font-family:inherit}
+  .githint{font-size:10.5px;color:var(--muted);margin-top:2px}
+  .sectit{font-size:11px;color:#7fc4ff;font-weight:600;margin-right:4px;align-self:center}
+  .controls{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;align-items:center}
   button{background:#222b36;color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:6px 10px;cursor:pointer;font-size:12px}
   button:hover{border-color:#3d4b5c}
   button.primary{background:#1f6feb;border-color:#1f6feb;color:#fff}
@@ -55,7 +61,22 @@
 </header>
 <div class="wrap">
   <div class="left">
+    <div class="gitbox" id="gitbox">
+      <div class="gittitle">① 자산 동기화 (사내망 Git → RPM/파일 선반입)</div>
+      <div class="gitrow">
+        <input id="git_url" placeholder="git URL (예: https://git.company/lter/vcs_assets.git)"/>
+        <input id="git_branch" placeholder="branch" style="max-width:110px"/>
+      </div>
+      <div class="gitrow">
+        <input id="asset_dest" placeholder="asset_dest 경로"/>
+        <button onclick="saveGit()">저장</button>
+        <button class="primary" onclick="syncGit()">⤓ Clone/Pull</button>
+      </div>
+      <div class="githint" id="githint">—</div>
+    </div>
+
     <div class="controls">
+      <span class="sectit">② 설치 파이프라인</span>
       <button class="primary" onclick="run('all')">▶ 전체 실행</button>
       <button onclick="run('phase','OS')">OS</button>
       <button onclick="run('phase','PKG')">PKG</button>
@@ -89,8 +110,31 @@ async function boot(){
   document.getElementById('mode').textContent = 'mode: ' + p.mode;
   renderBoard();
   await refreshStatus();
+  await loadGit();
   connectSSE();
 }
+
+async function loadGit(){
+  const g = await (await fetch('/api/git')).json();
+  document.getElementById('git_url').value = g.git_url||'';
+  document.getElementById('git_branch').value = g.git_branch||'main';
+  document.getElementById('asset_dest').value = g.asset_dest||'';
+  const hint = document.getElementById('githint');
+  hint.innerHTML = (g.exists?'<span class="ok">● 저장소 존재</span>':'○ 미수신')
+    + ' · 상태: ' + (g.status||'idle') + (g.running?' (동기화 중...)':'');
+}
+async function saveGit(){
+  const body={git_url:val('git_url'),git_branch:val('git_branch')||'main',asset_dest:val('asset_dest')};
+  await fetch('/api/git/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  addLog('git 설정 저장됨','verify'); await loadGit();
+}
+async function syncGit(){
+  await saveGit();
+  const r=await fetch('/api/git/sync',{method:'POST'});
+  if(!r.ok){ const e=await r.json(); addLog('⚠ '+(e.error||'동기화 실패'),'warn'); }
+  else { addLog('자산 동기화 시작...','head'); }
+}
+function val(id){ return document.getElementById(id).value.trim(); }
 
 function renderBoard(){
   const board = document.getElementById('board');
@@ -138,7 +182,7 @@ function connectSSE(){
     let ev; try{ ev=JSON.parse(e.data); }catch(_){ return; }
     if(ev.type==='log') addLog(ev.line, ev.level, ev.step);
     else if(ev.type==='status') applyStatus({step_id:ev.step, status:ev.status, ok:ev.ok, changed:ev.changed, failed:ev.failed});
-    else if(ev.type==='done') addLog('═══ 실행 종료: '+ev.status+' ═══','head');
+    else if(ev.type==='done'){ addLog('═══ 종료: '+ev.status+' ═══','head'); loadGit(); }
   };
 }
 
