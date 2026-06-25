@@ -37,10 +37,15 @@ chmod +x run_dev.sh
 브라우저에서 **http://localhost:8800** 접속. (WSL은 localhost가 Windows로 포워딩됨)
 
 ## 3. 자산 동기화 (Git) 사용법
-대시보드 좌측 상단 **① 자산 동기화** 패널:
+대시보드 **⚙ 설정 → 자산 동기화** 패널:
 1. `git URL`, `branch`, `asset_dest`(자산 저장 경로) 입력 → **저장**
 2. **⤓ Clone/Pull** 클릭 → 진행 로그가 우측 로그 패널에 실시간 스트리밍
 3. 완료 시 `files=N rpm=M` 요약 + "저장소 존재" 표시
+
+**사설 저장소(id/pw·토큰)**: `사용자` + `비밀번호/토큰` 입력 후 저장.
+- http(s) 저장소에 `Authorization: Basic` 헤더로 전달 → **`.git/config`에 저장 안 됨**, 로그엔 **마스킹**(`***`).
+- 토큰 값은 API로 반환하지 않음(설정 여부만 `인증✓`). 빈 칸 저장은 기존 토큰 유지, 지우려면 토큰 칸에 `-`.
+- GitHub/GitLab은 비밀번호 대신 **PAT(토큰)** 사용 권장. **SSH URL**(`git@…`)은 컨트롤러에 SSH 키 등록으로 인증(대시보드 인증칸은 http(s) 전용).
 
 - `asset_dest` 기본값: `<repo>/assets` (환경변수 `ASSET_DEST`로 변경 가능).
 - 플레이북이 참조하는 사이트 경로(`/root/lter_vcs_gimhae/`)는 추후 `{{ asset_root }}` 변수로
@@ -52,6 +57,10 @@ chmod +x run_dev.sh
 | `mock` | `./run_dev.sh` | 노드 없이 가짜 진행 로그. 대시보드 UI/흐름 개발용(기본) |
 | `check` | `DASHBOARD_MODE=check ./run_dev.sh` | `ansible-playbook --check`(dry-run). ansible 설치 필요 |
 | `real` | `DASHBOARD_MODE=real ./run_dev.sh` | 실제 ansible 실행. 인벤토리 노드 SSH 접근 필요 |
+
+**노드 연결 확인(🔌)**: ▶ 설치 탭에서 `대상` 선택 후 **🔌 연결 확인** → 각 노드의 SSH(22) 도달성을 확인.
+- 1차: TCP 22 포트 도달성(인증·ansible 불필요 — 네트워크/방화벽 확인). 2차(real/check + ansible 설치 시): `ansible -m ping`으로 SSH 인증 + 원격 파이썬 확인.
+- mock 모드에선 가짜 성공. 결과는 로그에 `✓/✗`로 표시.
 
 **HA 2노드 / 멱등성**: 파이프라인 컨트롤의 `대상` 드롭다운으로 특정 노드만(`--limit`) 실행할 수 있고,
 `멱등성 2회` 체크 시 각 멱등 step을 2회차 실행해 `changed=0`(통과) 여부를 step·보고서에 기록한다.
@@ -106,6 +115,7 @@ backend/gitassets.py    Git clone/pull 자산 동기화
 backend/inventory.py    인벤토리 구조화 읽기/쓰기(PyYAML 무의존)
 backend/secrets.py      시크릿(비밀번호) → group_vars/vcs.yml(0600, gitignore)
 backend/files.py        YAML/INI 파일 직접 편집(경로가드·확장자제한·시크릿제외·YAML검사)
+backend/nodecheck.py    노드 연결 확인(TCP22 도달성 + ansible ping)
 backend/events.py       공용 이벤트 버스(SSE 브로드캐스트)
 backend/report.py       결과 보고서 엔진(Markdown/HTML, 멱등성·검증 집계)
 backend/pipeline.py     24개 step 정의(단일 진실)

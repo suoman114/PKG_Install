@@ -106,6 +106,25 @@ def main():
     g = c.get("/api/git").get_json()
     check("git config persisted", g["git_url"] == "file:///x/repo.git" and g["git_branch"] == "main")
 
+    print("[7b] git auth masked + node connectivity check")
+    r = c.post("/api/git/config", json={"git_url": "https://g/r.git", "git_user": "u", "git_token": "TOKxyz"})
+    gd = r.get_json()
+    check("git_auth set, token never returned",
+          gd.get("git_auth") is True and "TOKxyz" not in json.dumps(gd) and "git_token" not in gd)
+    iv = c.get("/api/inventory").get_json()
+    iv["nodes"][0]["ansible_host"] = "10.1.2.3"
+    c.post("/api/inventory", json=iv)
+    nc = c.post("/api/nodes/check", json={"target": "all"})
+    check("node check started", nc.status_code == 200, str(nc.status_code))
+    deadline = time.time() + 15
+    plog = []
+    while time.time() < deadline:
+        plog = [l["line"] for l in c.get("/api/logs?after_id=0").get_json()["logs"] if l["step_id"] == "ping"]
+        if any("연결 확인 종료" in x for x in plog):
+            break
+        time.sleep(0.2)
+    check("node check ran for nodes", any("연결 가능" in x for x in plog), str(plog[-1:]))
+
     print("[7] file editor (list/read/write/guards)")
     fpaths = [f["path"] for f in c.get("/api/files").get_json()["files"]]
     check("playbooks listed, secret excluded",

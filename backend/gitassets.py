@@ -10,6 +10,7 @@ gitassets.py — Git 자산 동기화 (사내망에서 RPM/파일 선반입)
   git_branch : 브랜치 (기본 main)
   asset_dest : clone 대상 경로 (기본 <repo>/assets) → 플레이북 asset_root 와 매핑
 """
+import base64
 import os
 import subprocess
 import threading
@@ -24,21 +25,40 @@ GIT_STEP = "git"  # 로그/상태에서 사용하는 가상 step id
 
 
 def get_config():
+    # 토큰 값은 절대 반환하지 않고 설정 여부(git_auth)만 노출한다.
     return {
         "git_url": state.get_setting("git_url", ""),
         "git_branch": state.get_setting("git_branch", "main"),
         "asset_dest": state.get_setting("asset_dest", DEFAULT_DEST),
+        "git_user": state.get_setting("git_user", ""),
+        "git_auth": bool(state.get_setting("git_token", "")),
     }
 
 
-def set_config(git_url=None, git_branch=None, asset_dest=None):
+def set_config(git_url=None, git_branch=None, asset_dest=None,
+               git_user=None, git_token=None):
     if git_url is not None:
         state.set_setting("git_url", git_url.strip())
     if git_branch is not None:
         state.set_setting("git_branch", (git_branch or "main").strip())
     if asset_dest is not None:
         state.set_setting("asset_dest", (asset_dest or DEFAULT_DEST).strip())
+    if git_user is not None:
+        state.set_setting("git_user", git_user.strip())
+    # 빈 토큰은 기존 값 유지(시크릿과 동일). 지우려면 "-" 한 글자.
+    if git_token:
+        state.set_setting("git_token", "" if git_token == "-" else git_token)
     return get_config()
+
+
+def _auth_args(user, token):
+    """http(s) 사설 저장소용 Basic 인증 헤더. .git/config 에 저장되지 않음."""
+    if not token:
+        return [], None
+    cred = base64.b64encode(
+        "{}:{}".format(user or "x-access-token", token).encode("utf-8")
+    ).decode("ascii")
+    return ["-c", "http.extraHeader=Authorization: Basic {}".format(cred)], cred
 
 
 class Syncer(object):
@@ -62,6 +82,11 @@ class Syncer(object):
 
     def _sync(self, cfg):
         url, branch, dest = cfg["git_url"], cfg["git_branch"], cfg["asset_dest"]
+        user = state.get_setting("git_user", "")
+        token = state.get_setting("git_token", "")
+        auth, cred = _auth_args(user, token)
+        if token:
+            emit(GIT_STEP, "인증 사용: user={} token=***".format(user or "(x-access-token)"), "verify")
         self.last_status = "running"
         emit_status(GIT_STEP, "running")
         started = time.time()
@@ -69,15 +94,15 @@ class Syncer(object):
             git_dir = os.path.join(dest, ".git")
             if os.path.isdir(git_dir):
                 emit(GIT_STEP, "기존 저장소 감지 → pull: {}".format(dest), "head")
-                cmd = ["git", "-C", dest, "pull", "--ff-only", "origin", branch]
+                cmd = ["git"] + auth + ["-C", dest, "pull", "--ff-only", "origin", branch]
             else:
                 parent = os.path.dirname(dest) or "."
                 if not os.path.isdir(parent):
                     os.makedirs(parent, exist_ok=True)
                 emit(GIT_STEP, "신규 clone: {} (branch={}) → {}".format(url, branch, dest), "head")
-                cmd = ["git", "clone", "--branch", branch, "--depth", "1", url, dest]
+                cmd = ["git"] + auth + ["clone", "--branch", branch, "--depth", "1", url, dest]
 
-            ok = self._stream(cmd)
+            ok = self._stream(cmd, redact=cred)
             if ok:
                 size = self._dir_summary(dest)
                 emit(GIT_STEP, "✓ 동기화 완료 ({:.1f}s) — {}".format(time.time() - started, size), "head")
@@ -93,8 +118,15 @@ class Syncer(object):
         finally:
             emit_done(self.last_status)
 
-    def _stream(self, cmd):
-        emit(GIT_STEP, "$ " + " ".join(cmd), "verify")
+    def _redact(self, text, cred):
+        out = text
+        if cred:
+            out = out.replace("Authorization: Basic {}".format(cred), "Authorization: Basic ***")
+            out = out.replace(cred, "***")
+        return out
+
+    def _stream(self, cmd, redact=None):
+        emit(GIT_STEP, "$ " + self._redact(" ".join(cmd), redact), "verify")
         try:
             proc = subprocess.Popen(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -104,7 +136,7 @@ class Syncer(object):
             emit(GIT_STEP, "git 미설치 — 'yum install -y git' 후 재시도하세요.", "error")
             return False
         for line in iter(proc.stdout.readline, ""):
-            emit(GIT_STEP, line.rstrip("\n"))
+            emit(GIT_STEP, self._redact(line.rstrip("\n"), redact))
         proc.stdout.close()
         return proc.wait() == 0
 
