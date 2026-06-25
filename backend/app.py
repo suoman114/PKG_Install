@@ -24,7 +24,7 @@ import queue
 
 from flask import Flask, Response, jsonify, request, send_from_directory
 
-from . import gitassets, inventory, orchestrator, pipeline, report, secrets, state
+from . import files, gitassets, inventory, orchestrator, pipeline, report, secrets, state
 from .events import bus
 
 BASE = os.path.dirname(os.path.dirname(__file__))
@@ -180,6 +180,35 @@ def git_config():
         asset_dest=body.get("asset_dest"),
     )
     return jsonify(cfg)
+
+
+@app.route("/api/files")
+def files_list():
+    return jsonify({"files": files.list_files()})
+
+
+@app.route("/api/files/content")
+def files_read():
+    path = request.args.get("path", "")
+    try:
+        return jsonify({"path": path, "content": files.read_file(path)})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route("/api/files/content", methods=["POST"])
+def files_write():
+    if orchestrator.runner.running:
+        return jsonify({"error": "실행 중에는 파일을 저장할 수 없습니다."}), 409
+    body = request.get_json(force=True, silent=True) or {}
+    path = body.get("path", "")
+    try:
+        ok, msg = files.write_file(path, body.get("content", ""))
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    if not ok:
+        return jsonify({"error": msg}), 400
+    return jsonify({"path": path, "message": msg})
 
 
 @app.route("/api/secrets")

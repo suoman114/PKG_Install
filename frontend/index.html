@@ -97,6 +97,18 @@
       <div class="githint" id="sechint">—</div>
     </details>
 
+    <details class="gitbox" id="filebox">
+      <summary class="gittitle">📝 파일 편집 (YAML/INI — 고급)</summary>
+      <div class="gitrow" style="margin-top:8px">
+        <select id="fileSelect" onchange="loadFile()" style="flex:1"></select>
+        <button onclick="loadFile()">불러오기</button>
+        <button id="fileSaveBtn" class="primary" onclick="saveFile()">💾 저장</button>
+      </div>
+      <textarea id="fileContent" spellcheck="false" placeholder="파일을 선택하면 내용이 로드됩니다."
+        style="width:100%;box-sizing:border-box;height:260px;background:#0f1419;color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:8px;font-family:monospace;font-size:12px;white-space:pre;overflow:auto"></textarea>
+      <div class="githint" id="filehint">⚠ 인벤토리 파일(hosts.ini/host_vars)을 직접 편집하면, 이후 ① 인벤토리 저장 시 폼 값으로 덮어쓰여질 수 있습니다.</div>
+    </details>
+
     <div class="gitbox" id="gitbox">
       <div class="gittitle">② 자산 동기화 (사내망 Git → RPM/파일 선반입)</div>
       <div class="gitrow">
@@ -154,8 +166,41 @@ async function boot(){
   await loadGit();
   await loadInventory();
   await loadSecrets();
+  await loadFileList();
   connectSSE();
 }
+
+async function loadFileList(){
+  const d=await (await fetch('/api/files')).json();
+  const sel=document.getElementById('fileSelect'); if(!sel) return;
+  const cur=sel.value;
+  sel.innerHTML='<option value="">— 파일 선택 —</option>'+
+    (d.files||[]).map(f=>'<option value="'+esc(f.path)+'">['+esc(f.category)+'] '+esc(f.path)+'</option>').join('');
+  if(cur) sel.value=cur;
+}
+async function loadFile(){
+  const path=document.getElementById('fileSelect').value;
+  if(!path){ setFileHint('파일을 선택하세요.','bad'); return; }
+  const r=await fetch('/api/files/content?path='+encodeURIComponent(path));
+  const d=await r.json();
+  if(!r.ok){ setFileHint(d.error||'불러오기 실패','bad'); return; }
+  document.getElementById('fileContent').value=d.content;
+  setFileHint('불러옴: ansible/'+path,'');
+}
+async function saveFile(){
+  const path=document.getElementById('fileSelect').value;
+  if(!path){ setFileHint('파일을 선택하세요.','bad'); return; }
+  const content=document.getElementById('fileContent').value;
+  const r=await fetch('/api/files/content',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({path:path,content:content})});
+  const d=await r.json();
+  if(!r.ok){ setFileHint('저장 실패: '+(d.error||''),'bad'); addLog('⚠ 파일 저장 실패('+path+'): '+(d.error||''),'warn'); return; }
+  setFileHint('✓ '+(d.message||'저장됨')+' (ansible/'+path+')','ok');
+  addLog('파일 저장: ansible/'+path,'verify');
+  // 인벤토리 파일을 직접 고쳤다면 폼 동기화
+  if(path==='inventory/hosts.ini'||path.indexOf('inventory/host_vars/')===0) loadInventory();
+}
+function setFileHint(m,c){ const e=document.getElementById('filehint'); e.innerHTML=c?'<span class="'+c+'">'+m+'</span>':m; }
 
 async function loadSecrets(){
   const s=await (await fetch('/api/secrets')).json();
