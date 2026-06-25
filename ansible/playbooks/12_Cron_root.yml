@@ -1,0 +1,34 @@
+- hosts: vcs
+  remote_user: root
+  vars:
+     var1: vcs
+  tasks:
+ 
+    - name: hp healh && Only Use PNF
+      cron:
+       minute: "*"
+       job: "/bin/sh ~{{var1}}/HOME/data/script/chk_hw_hplinux.sh -i > /dev/null 2>&1"
+
+
+
+#    - name: Register run.sh in crontab 
+#      hosts: vcs
+#      become: yes
+#      tasks:
+
+    - name: Ensure crontab entry exists for vcs user
+      cron:
+        name: "Run vced/bin/run.sh every 1 minute"
+        user: vcs
+        minute: "*"
+        job: "/home/vcs/vced/bin/run.sh start"
+
+    - name: Ensure crontab entry exists for vcs user
+      cron:
+        name: "Run cron/bin/run.sh every 0:30 per day" 
+        user: vcs
+        minute: "30"
+        hour: "0"
+        job: "/home/vcs/cron/bin/run.sh"
+
+

@@ -1,0 +1,23 @@
+- hosts: vcs 
+  remote_user: root
+
+  vars:
+     var1: "{{app_user}}"
+
+  tasks:
+
+   - name: ld so config copy(oam)
+     copy:
+        src: /root/lter_vcs_gimhae/vcs_conf/oam.conf
+        dest: /etc/ld.so.conf.d/
+
+   - name: ld so config copy(java)
+     copy:
+        src: /root/lter_vcs_gimhae/vcs_conf/java_el8.conf
+        dest: /etc/ld.so.conf.d/
+
+   - name: setcap 
+     shell: setcap cap_net_raw,cap_net_admin=eip /usr/lib/jvm/java-1.8.0-openjdk-1.8.0.362.b09-2.el8_7.x86_64/jre/bin/java
+
+   - name: ldconfig execute
+     shell: ldconfig

@@ -1,0 +1,110 @@
+- name: ifcfg 파일이 없는 광포트 출력, 생성, 활성화
+  hosts: vcs
+  become: yes
+  gather_facts: no
+
+
+  vars:
+    rc_local_path: /etc/rc.local
+
+
+  tasks:
+    - name: 모든 네트워크 인터페이스 목록 수집
+      shell: ls /sys/class/net | grep -v lo
+      register: iface_list
+
+    - name: 광 포트(FIBRE) 인터페이스만 필터링 (예-10Gbps)
+      shell: |
+        for iface in {{ iface_list.stdout_lines | join(' ') }}; do
+          if ethtool "$iface" 2>/dev/null | grep -q 'Supported ports:.*FIBRE'; then
+
+          #if ethtool "$iface" 2>/dev/null | grep -q '10000Mb'; then
+            echo "$iface"
+          fi
+        done
+      register: optical_ifaces
+
+    - name: ifcfg- 파일 존재 여부 확인
+      stat:
+        path: "/etc/sysconfig/network-scripts/ifcfg-{{ item }}"
+      loop: "{{ optical_ifaces.stdout_lines }}"
+      register: ifcfg_stat
+
+    - name: ifcfg- 파일 없는 광 포트만 추출
+      set_fact:
+        missing_ifcfg: "{{ missing_ifcfg | default([]) + [item.item] }}"
+      loop: "{{ ifcfg_stat.results }}"
+      when: not item.stat.exists
+
+    - name: ifcfg 파일이 없는 광포트 리스트 출력
+      debug:
+        msg: >
+          ifcfg 파일이 없는 광포트: {{ missing_ifcfg | default('없음') }}
+
+#    - name: ifcfg- 파일 생성 (BOOTPROTO=none)
+#      copy:
+#        dest: "/etc/sysconfig/network-scripts/ifcfg-{{ item }}"
+#        content: |
+#          DEVICE={{ item }}
+#          ONBOOT=yes
+#          BOOTPROTO=none
+##        mode: '0644'
+#      loop: "{{ missing_ifcfg | default([]) }}"
+#      when: missing_ifcfg | length > 0
+
+# #   - name: 인터페이스 활성화 (ifup)
+# ##     shell: ifup {{ item }}
+#      loop: "{{ missing_ifcfg | default([]) }}"
+#      when: missing_ifcfg | length > 0
+
+    - name: 생성 및 활성화된 광포트 출력
+      debug:
+        msg: >
+          생성 및 활성화된 광포트: {{ missing_ifcfg | default('없음') }}
+
+    - name: "각 광포트의 RX ringbuffer 최대값 조회"
+      shell: ethtool -g {{ item }} | awk '/RX:/ && !/Mini|Jumbo/ {print $2; exit}'
+      loop: "{{ optical_ifaces.stdout_lines }}"
+      register: rx_max
+
+    - name: "각 광포트의 현재 RX ringbuffer 값 조회"
+      shell: ethtool -g {{ item }} | awk '/Current hardware settings:/,0 {getline; print $2; exit}'
+      loop: "{{ optical_ifaces.stdout_lines }}"
+      register: rx_current
+
+    - name: "RX ringbuffer 최대값 적용 (이미 최대면 무시)"
+      shell: |
+             ethtool -G ens1f0np0 rx 2047
+             ethtool -G ens1f1np1 rx 2047
+             ethtool -G ens4f0np0 rx 2047
+             ethtool -G ens4f1np1 rx 2047
+      ignore_errors: yes
+
+
+###  moidfy interface card name in rc.local RX ringbuffer 설정성생 필요 
+    - name: "rc.local에 RX ringbuffer 설정 명령 추가"
+      blockinfile:
+        path: "{{ rc_local_path }}"
+        marker: "# {mark} ANSIBLE RINGBUFFER"
+        block: |
+             ethtool -G ens1f0np0 rx 2047
+             ethtool -G ens1f1np1 rx 2047
+             ethtool -G ens4f0np0 rx 2047
+             ethtool -G ens4f1np1 rx 2047
+
+        mode: '0755'
+
+    - name: "생성 및 활성화된 광포트 출력"
+      debug:
+        msg: >
+          인터페이스 명 확인 및 실행
+          
+    - name: "rc.local 실행 권한 부여"
+      file:
+        path: "{{ rc_local_path }}"
+        mode: '0755'
+
+    - name: "생성 및 활성화된 광포트 출력"
+      debug:
+        msg: >
+          생성 및 활성화된 광포트: {{ missing_ifcfg | default('없음') }}

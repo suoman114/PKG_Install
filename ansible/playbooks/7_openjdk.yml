@@ -1,0 +1,26 @@
+- hosts: vcs
+  remote_user: root
+  tasks:
+      
+       - copy:
+             src: /root/lter_vcs_gimhae/rpm/openjdk/  
+             dest: /root/rpm/openjdk/  
+
+       # Get a list of rpms from a directory
+
+       - name: find rpm files and register the result 
+         find:
+             paths: /root/rpm/openjdk/
+             patterns: "*.rpm" 
+         register: rpm_files
+       
+       # Create a list of the rpms to use with the yum install command
+       - set_fact:
+             rpm_lists: "{{ rpm_files.files | map(attribute='path') | list}} "
+       
+         # Use yum to install with a list
+       - name: install rpm files 
+         yum:
+             name: "{{rpm_lists}}"
+             state: present
+             disable_gpg_check: yes 

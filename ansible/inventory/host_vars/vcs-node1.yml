@@ -1,0 +1,15 @@
+# node1 호스트 변수 (Active)
+# 플레이북 08-1/08-3/13/14/18 등이 참조하는 미정의 변수를 여기서 공급한다.
+server_id: 1
+peer_ip: 10.0.0.12          # node2 (복제 상대)
+app_user: vcs
+ramdisk_size: 10g
+# 광 NIC 명 (현장마다 다름 / 18 ringbuffer 파라미터화 대상)
+optical_nics:
+  - ens1f0np0
+  - ens1f1np1
+  - ens4f0np0
+  - ens4f1np1
+# 폐쇄망 NTP (04 활성화 시)
+# ntp_ip1: 10.0.0.1
+# ntp_ip2: 10.0.0.2

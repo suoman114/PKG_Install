@@ -1,0 +1,23 @@
+- hosts: vcs
+  remote_user: root
+  vars :
+      ramdisk_path: /home/vcs/ramdisk
+      ramdisk_size: 10g
+ 
+  tasks:
+    - name: Ensure ramdisk directory exists
+      file:
+        dest: "{{ ramdisk_path }}"
+        mode: '01777'
+        state: directory
+        owner: vcs
+        group: vcs
+
+    - name: Ensure ramdisk is mounted
+      mount:
+        name: "{{ ramdisk_path }}"
+        src: tmpfs
+        fstype: tmpfs
+        opts: "size={{ ramdisk_size }}"
+        state: mounted
+

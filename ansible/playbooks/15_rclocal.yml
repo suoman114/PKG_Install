@@ -1,0 +1,31 @@
+- hosts: vcs 
+  remote_user: root 
+  become : yes
+  tasks:
+       - debug: var=ansible_nodename
+       - name: add rc.local to ring buffer
+         blockinfile:
+
+          path: /etc/rc.local
+          state:  present
+          insertafter: EOF
+          block: |
+                     iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 17080
+
+#       - name: ring buffer set by command 
+#         shell: "ethtool -G ens1f0 rx 2047"
+#         register: result
+#       - debug: var=result.stdout_lines
+
+
+       - name: Port forwarding 80 -> 17080
+         ansible.builtin.iptables:
+           table: nat
+           chain: PREROUTING
+           protocol: tcp
+           destination_port: 80
+           jump: REDIRECT
+           to_ports: 17080
+           comment: "Redirect HTTP to 17080"
+           state: present
+         become: yes

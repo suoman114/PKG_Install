@@ -1,0 +1,12 @@
+# node2 호스트 변수 (Standby)
+server_id: 2
+peer_ip: 10.0.0.11          # node1 (복제 상대)
+app_user: vcs
+ramdisk_size: 10g
+optical_nics:
+  - ens1f0np0
+  - ens1f1np1
+  - ens4f0np0
+  - ens4f1np1
+# ntp_ip1: 10.0.0.1
+# ntp_ip2: 10.0.0.2

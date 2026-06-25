@@ -1,0 +1,10 @@
+- hosts: vcs
+  remote_user: root
+  tasks:
+  - name: visudo allocate " ALL=(ALL) ALL"  for the vcs Group
+    lineinfile:
+      path: /etc/sudoers
+      state: present
+      insertafter:  '^%wheel'
+      line: "%vcs ALL=(ALL) ALL"
+      validate: 'visudo -cf %s'

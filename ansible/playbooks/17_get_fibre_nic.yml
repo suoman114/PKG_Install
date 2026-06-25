@@ -1,0 +1,59 @@
+- name: ifcfg 파일이 없는 광포트 출력, 생성, 활성화
+  hosts: vcs
+  become: yes
+  gather_facts: no
+
+
+  tasks:
+    - name: 모든 네트워크 인터페이스 목록 수집
+      shell: ls /sys/class/net | grep -v lo
+      register: iface_list
+
+    - name: 광 포트(FIBRE) 인터페이스만 필터링 (예-10Gbps)
+      shell: |
+        for iface in {{ iface_list.stdout_lines | join(' ') }}; do
+          if ethtool "$iface" 2>/dev/null | grep -q 'Supported ports:.*FIBRE'; then
+
+          #if ethtool "$iface" 2>/dev/null | grep -q '10000Mb'; then
+            echo "$iface"
+          fi
+        done
+      register: optical_ifaces
+
+    - name: ifcfg- 파일 존재 여부 확인
+      stat:
+        path: "/etc/sysconfig/network-scripts/ifcfg-{{ item }}"
+      loop: "{{ optical_ifaces.stdout_lines }}"
+      register: ifcfg_stat
+
+    - name: ifcfg- 파일 없는 광 포트만 추출
+      set_fact:
+        missing_ifcfg: "{{ missing_ifcfg | default([]) + [item.item] }}"
+      loop: "{{ ifcfg_stat.results }}"
+      when: not item.stat.exists
+
+    - name: ifcfg 파일이 없는 광포트 리스트 출력
+      debug:
+        msg: >
+          ifcfg 파일이 없는 광포트: {{ missing_ifcfg | default('없음') }}
+
+    - name: ifcfg- 파일 생성 (BOOTPROTO=none)
+      copy:
+        dest: "/etc/sysconfig/network-scripts/ifcfg-{{ item }}"
+        content: |
+          DEVICE={{ item }}
+          ONBOOT=yes
+          BOOTPROTO=none
+        mode: '0644'
+      loop: "{{ missing_ifcfg | default([]) }}"
+      when: missing_ifcfg | length > 0
+
+    - name: 인터페이스 활성화 (ifup)
+      shell: ifup {{ item }}
+      loop: "{{ missing_ifcfg | default([]) }}"
+      when: missing_ifcfg | length > 0
+
+    - name: 생성 및 활성화된 광포트 출력
+      debug:
+        msg: >
+          생성 및 활성화된 광포트: {{ missing_ifcfg | default('없음') }}

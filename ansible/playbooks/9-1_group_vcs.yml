@@ -1,0 +1,49 @@
+- hosts: vcs
+  remote_user: root
+  vars:
+     var1: vcs
+#     var1: "{{group_names[0]}}"
+#     var1: "{{var1}}"
+     acs_gid: 801
+     input_uid_host: "{{var1}}_uid"
+     acs_uid_info:
+        vcs: 802
+     acs_uid: '{{acs_uid_info[var1 | default("this host not invalid")] | default("") }}'
+ 
+ 
+  tasks:
+   - name: Generate encrypted passwd
+     shell: openssl passwd -salt 'some_plain_salt' -1 '{{var1}}.123'
+     register: passwd
+ 
+ 
+   - debug: var=passwd
+   - debug: var=var1
+   - debug: var=group_names
+#   - debug: var=inventory_hostname
+#   - debug: var=hostvars
+ 
+   - name: Ensure group "vcs" exists
+     group:
+      name: vcs
+      state: present
+      gid: "{{ acs_gid | int }}"
+ 
+   - name: "account {{var1  }} &  {{var1}}_uid : generated"
+     user:
+      name: "{{var1}}"
+      uid: "{{ item | int}} "
+      # You shouldn’t put plaintext passwords,Masked value of the password
+      password: "{{passwd.stdout}}"
+#      password: "$1$some_pla$e6NkEfC/6.cZNsqrOVnlJ."
+      state: present
+      group: vcs
+     with_items:
+      - "{{ acs_uid }}"
+ 
+   - name: upload sshkey
+     authorized_key:
+      user: "{{var1}}"
+      state: present
+      manage_dir: yes
+      key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"

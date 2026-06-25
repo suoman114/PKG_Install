@@ -1,0 +1,13 @@
+- hosts: vcs
+  remote_user: root
+  tasks:
+   - debug: var=group_names
+   - name: chown and chmod
+     file:
+        path: '{{ item }}'
+        owner: vcs
+        state: directory
+        mode: 04755
+
+     with_items:
+        - /home/vcs

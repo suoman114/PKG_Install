@@ -1,0 +1,138 @@
+- hosts: vcs
+  remote_user: root
+
+  tasks:
+    - name: Create systemd service directory
+      file:
+        path: /etc/systemd/system
+        state: directory
+        mode: '0755'
+
+    # --------------------------------------------------
+    # VCS Service
+    # --------------------------------------------------
+    - name: Deploy VCS systemd service file
+      copy:
+        dest: /etc/systemd/system/vcs.service
+        content: |
+          [Unit]
+          Description=UANGEL VCS Service
+          Wants=network-online.target
+          After=network-online.target
+
+          [Service]
+          Type=forking
+          User=vcs
+          Group=vcs
+          WorkingDirectory=/home/vcs/HOME/bin
+
+          # --- 로그인 셸과 동일한 환경 세팅 ---
+          Environment="HOME=/home/vcs"
+          Environment="USER=vcs"
+          Environment="LOGNAME=vcs"
+          Environment="SHELL=/bin/bash"
+          Environment="LANG=C"
+          Environment="UASYS_HOME=/home/vcs/HOME"
+          Environment="LD_LIBRARY_PATH=/home/vcs/HOME/lib:/home/vcs/HOME/lua/lib:/usr/lib/hpux64:/usr/local/lib/hpux64:/usr/local/lib:/usr/lib"
+          Environment="SHLIB_PATH=/home/vcs/HOME/lib:/home/vcs/HOME/lua/lib:/usr/lib/hpux64:/usr/local/lib/hpux64:/usr/local/lib:/usr/lib"
+          Environment="LPATH=/usr/lib/hpux64:/usr/local/lib/hpux64:/usr/local/lib:/usr/lib"
+          Environment="PATH=/home/vcs/HOME/bin:/sbin:/usr/sbin:/usr/local/bin:/usr/bin:/bin:/home/vcs/script:/home/vcs/.local/bin:/home/vcs/bin"
+
+          # --- 실행 명령 ---
+          ExecStart=/bin/bash -lc "/home/vcs/HOME/bin/startmc -y"
+          ExecStop=/bin/bash -lc "/home/vcs/HOME/bin/stopmc -y"
+          ExecStartPost=/bin/bash -lc "/home/vcs/HOME/bin/clric || true"
+
+          Restart=on-failure
+          RestartSec=5
+          LimitNOFILE=65535
+
+          [Install]
+          WantedBy=multi-user.target
+        mode: '0644'
+
+    # --------------------------------------------------
+    # VCWEB Service (updated)
+    # --------------------------------------------------
+    - name: Deploy VCWEB systemd service file
+      copy:
+        dest: /etc/systemd/system/vcweb.service
+        content: |
+          [Unit]
+          Description=UANGEL VCWEB Service
+          After=network.target
+
+          [Service]
+
+          Type=oneshot
+          RemainAfterExit=yes
+          User=vcweb
+          Group=vcweb
+          WorkingDirectory=/home/vcweb/vcweb/bin
+          Environment="HOME=/home/vcweb"
+          Environment="PATH=/home/vcweb/vcweb/bin:/usr/local/bin:/usr/bin:/bin"
+
+          ExecStart=/bin/bash -lc "/home/vcweb/vcweb/bin/vcweb.sh start >/dev/null 2>&1"
+          ExecStop=/bin/bash -lc "/home/vcweb/vcweb/bin/vcweb.sh stop >/dev/null 2>&1"
+
+
+          [Install]
+          WantedBy=multi-user.target
+        mode: '0644'
+
+    # --------------------------------------------------
+    # VCAPI Service (from previous script)
+    # --------------------------------------------------
+    - name: Deploy VCAPI systemd service file
+      copy:
+        dest: /etc/systemd/system/vcapi.service
+        content: |
+          [Unit]
+          Description=UANGEL VCAPI Service
+          After=network.target
+
+          [Service]
+
+          Type=forking
+          User=vcweb
+          Group=vcweb
+          WorkingDirectory=/home/vcweb/vcapi/bin
+
+          Environment="HOME=/home/vcweb/vcapi"
+          Environment="UASYS_HOME=/home/vcweb/HOME"
+          Environment="LD_LIBRARY_PATH=/home/vcweb/HOME/oam/lib:/home/vcweb/vcapi/lib"
+          Environment="PATH=/home/vcweb/vcapi/bin:/usr/local/bin:/usr/bin:/bin"
+
+          ExecStart=/bin/bash -lc "/home/vcweb/vcapi/bin/vcapi_startup.sh start"
+          ExecStop=/bin/bash -lc "/home/vcweb/vcapi/bin/vcapi_startup.sh stop"
+
+          Restart=on-failure
+          RestartSec=5
+
+          [Install]
+          WantedBy=multi-user.target
+        mode: '0644'
+
+    # --------------------------------------------------
+    # Reload and start all services
+    # --------------------------------------------------
+    - name: Reload systemd daemon
+      command: systemctl daemon-reload
+
+    - name: Enable and start VCS service
+      systemd:
+        name: vcs
+        enabled: yes
+        state: started
+
+    - name: Enable and start VCWEB service
+      systemd:
+        name: vcweb
+        enabled: yes
+        state: started
+
+    - name: Enable and start VCAPI service
+      systemd:
+        name: vcapi
+        enabled: yes
+        state: started

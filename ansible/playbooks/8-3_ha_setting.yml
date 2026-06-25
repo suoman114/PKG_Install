@@ -1,0 +1,64 @@
+- name: Setup MariaDB  Master-Master Replication (Active/Standby, single playbook)
+  hosts: vcs
+  remote_user: root
+  vars:
+    replication_user: replication
+    replication_pass: repl.123
+    peer_ip: "{{ hostvars[inventory_hostname]['peer_ip'] }}"
+    server_id: "{{ hostvars[inventory_hostname]['server_id'] }}"
+    gtid_cnf_file: /etc/my.cnf.d/replication_gtid.cnf
+
+  tasks:
+
+  - name: Ensure MariaDB is running and enabled
+    service:
+      name: mariadb
+      state: started
+      enabled: yes
+
+  - name: Ensure  replication config file exists
+
+#        enforce-gtid-consistency=1
+    copy:
+      dest: "{{ gtid_cnf_file }}"
+      content: |
+        [mysqld]
+        log-slave-updates=1
+        gtid_strict_mode=0
+        binlog-format=ROW
+#    notify: Restart MariaDB
+
+  - name: Restart MariaDB
+    service:
+      name: mariadb
+      state: restarted
+
+  - name: Create replication user for peer
+    mysql_user:
+      name: "{{ replication_user }}"
+      password: "{{ replication_pass }}"
+      host: "{{ peer_ip }}"
+      priv: "*.*:REPLICATION SLAVE"
+      state: present
+
+  - name: Configure  replication to peer
+    mysql_replication:
+      mode: changemaster
+      master_host: "{{ peer_ip }}"
+      master_user: "{{ replication_user }}"
+      master_password: "{{ replication_pass }}"
+#      master_use_gtid: slave_pos
+
+  - name: Start replication
+    mysql_replication:
+      mode: startslave
+
+  - name: Check replication status
+    shell: |
+      mysql -e "SHOW SLAVE STATUS\G" | grep -E 'Slave_IO_Running|Slave_SQL_Running|Using_Gtid'
+    register: replication_status
+    changed_when: false
+
+  - name: Show replication status
+    debug:
+      msg: "{{ replication_status.stdout_lines }}"

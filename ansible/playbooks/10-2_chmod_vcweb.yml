@@ -1,0 +1,13 @@
+- hosts: vcs
+  remote_user: root
+  tasks:
+   - name: chown and chmod
+     file:
+        path: '{{ item }}'
+        owner: vcweb
+        group: vcweb
+        state: directory
+        mode: 04777
+
+     with_items:
+        - /home/vcweb/vcweb/REC

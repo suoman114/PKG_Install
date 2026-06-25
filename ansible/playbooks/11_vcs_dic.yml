@@ -1,0 +1,88 @@
+- hosts: vcs
+  remote_user: root
+  vars:
+#### recommand reference api rpm
+   - vcapi_rpm_name : vcapi-0.0.1-4.noarch.rpm
+
+  tasks:
+   - name: vcs bash shell copy
+     unarchive:
+        src: /root/lter_vcs_gimhae/bash_vcs.tar.gz
+        dest: /home/vcs
+
+   - name: vcsweb bash shell copy
+     unarchive:
+        src: /root/lter_vcs_gimhae/bash_vcweb.tar.gz
+        dest: /home/vcweb
+
+   - name: vcs script copy     
+     unarchive:
+        src: /root/lter_vcs_gimhae/vcs_conf/vcs_script.tar.gz
+        dest: /home/vcs
+
+   - name: vcs script  shell copy
+     unarchive:
+        src: /root/lter_vcs_gimhae/vcs_conf/vcweb_script.tar.gz
+        dest: /home/vcweb
+
+   - name: extract empty vcs_dic
+     unarchive:
+        src: /root/lter_vcs_gimhae/vcs_conf/vcs_dic.tar.gz
+        dest: /home/vcs
+
+   - name: extract empty vcweb_dic
+     unarchive:
+        src: /root/lter_vcs_gimhae/vcs_conf/vcweb_dic.tar.gz
+        dest: /home/vcweb
+
+   - name: vcs_pkg copy
+     unarchive:
+        src: /root/lter_vcs_gimhae/vcs_pkg/vcs_gimhae_pkg.tar.gz
+        dest: /home/vcs/
+   
+   - name: vcs_usttif copy
+     unarchive:
+        src: /root/lter_vcs_gimhae/vcs_pkg/vcs_gimhae_usttif.tar.gz
+        dest: /home/vcs/
+ 
+   - name: vcs_oam copy
+     unarchive:
+        src: /root/lter_vcs_gimhae/vcs_pkg/vcs_oam.tar.gz
+        dest: /home/vcs
+
+   - name: vcapi rpm copy
+     copy:
+        src: /root/lter_vcs_gimhae/vcs_pkg/{{vcapi_rpm_name}}
+        dest: /root/rpm/api/
+
+   - name: find rpm files and register the result
+     find:
+        paths: /root/rpm/api/
+        patterns: "*.rpm"
+     register: rpm_files
+
+   - set_fact:
+        rpm_lists: "{{ rpm_files.files | map(attribute='path') | list}} "
+
+   - name: install rpm files
+     yum:
+        name: "{{rpm_lists}}"
+        state: present
+        disable_gpg_check: yes
+
+ 
+   - name: vcweb copy
+     unarchive:
+        src: /root/lter_vcs_gimhae/vcs_pkg/vcweb_pkg.tar.gz
+        dest: /home/vcweb/
+
+
+
+   - name: Create oam folder symbolic link
+     file:
+       src: "/home/vcs/REC"
+       dest: "/home/vcweb/vcweb/{{item}}"
+       state: link
+       force: yes
+     with_items:
+       - REC

@@ -1,0 +1,24 @@
+- hosts: vcs
+  remote_user: root
+  tasks:
+       - debug: var=ansible_nodename
+#       - copy:
+#            src: /root/lter_vcs_gimhae/rpm/RMQ/
+#            dest: /root/rpm/RMQ/
+ 
+
+#       - name: Enables the rabbitmq_management plugin
+#         rabbitmq_plugin:
+#            names: rabbitmq_management,rabbitmq_message_timestamp
+#            state: enabled
+ 
+       - name: add users
+         rabbitmq_user:
+           user: vcm
+           password: vcm.123
+           node: "{{inventory_hostname}}"
+           configure_priv: .*
+           read_priv: .*
+           write_priv: .*
+           tags : administrator
+           state: present

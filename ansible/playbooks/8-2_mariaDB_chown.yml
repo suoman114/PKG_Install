@@ -1,0 +1,20 @@
+- hosts: vcs
+  remote_user: root
+  tasks:
+   - debug: var=group_names
+   - name: chown and chmod
+     file:
+        path: '{{ item }}'
+        owner: mysql
+        group: mysql
+        state: directory
+        mode: 04755
+
+     with_items:
+        - /var/log/mysql
+       
+   - name: Start and enable mariadb
+     systemd:
+        state: restarted
+        enabled : yes
+        name : mariadb

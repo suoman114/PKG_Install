@@ -1,0 +1,44 @@
+- hosts: vcs
+  remote_user: root
+  vars:
+     var1: vcweb
+     acs_gid: 1002
+     input_uid_host: "{{var1}}_uid"
+     acs_uid_info:
+        vcweb: 1002
+     acs_uid: '{{acs_uid_info[var1 | default("this host not invalid")] | default("") }}'
+ 
+ 
+  tasks:
+   - name: Generate encrypted passwd
+     shell: openssl passwd -salt 'some_plain_salt' -1 '{{var1}}.123'
+     register: passwd
+ 
+ 
+   - debug: var=passwd
+   - debug: var=var1
+   - debug: var=group_names
+ 
+   - name: Ensure group "vcsrec" exists
+     group:
+      name: vcweb
+      state: present
+      gid: "{{ acs_gid | int }}"
+ 
+   - name: "account {{var1  }} &  {{var1}}_uid : generated"
+     user:
+      name: "{{var1}}"
+      uid: "{{ item | int}} "
+      # You shouldn’t put plaintext passwords,Masked value of the password
+      password: "{{passwd.stdout}}"
+      state: present
+      group: vcweb
+     with_items:
+      - "{{ acs_uid }}"
+ 
+   - name: upload sshkey
+     authorized_key:
+      user: "{{var1}}"
+      state: present
+      manage_dir: yes
+      key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"

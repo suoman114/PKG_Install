@@ -1,0 +1,92 @@
+- hosts: vcs
+  remote_user: root
+  tasks:
+       - debug: var=ansible_nodename
+       - copy:
+            src: /root/lter_vcs_gimhae/rpm/RMQ/
+            dest: /root/rpm/RMQ/
+ 
+ 
+       # Get a list of rpms from a directory
+ 
+       - name: find rpm files and register the result
+ 
+         find:
+             paths: /root/rpm/RMQ/
+             patterns: "*.rpm"
+         register: rpm_files
+ 
+       # Create a list of the rpms to use with the yum install command
+       - set_fact:
+             rpm_lists: "{{ rpm_files.files | map(attribute='path') | list}} "
+ 
+         # Use yum to install with a list
+       - name: install rpm files
+         yum:
+             name: "{{rpm_lists}}"
+             state: present
+             disable_gpg_check: yes
+
+         # add hosts name 
+       - name: add hosts name 
+         shell: hostname | sed 's/-//g'
+         register: hostname_content
+ 
+ 
+ 
+       - name: add hosts file
+         lineinfile:
+ 
+           path: /etc/hosts
+           state: present
+           insertbefore: BOF
+           #line: "127.0.0.1 demo-2"
+           line: "127.0.0.1 {{hostname_content.stdout.split('.')[0] }}"
+ 
+       - name: add Rabbitmq config
+         blockinfile:
+ 
+          path: /etc/rabbitmq/rabbitmq.conf
+          state: present
+          create : yes
+          insertbefore: BOF
+          block: |
+                     vm_memory_high_watermark.absolute = 2GB
+                     heartbeat=1
+ 
+       - name: add Rabbitmq evn_config
+         blockinfile:
+ 
+          path: /etc/rabbitmq/rabbitmq-env.conf
+          state: present
+          create : yes
+          insertbefore: BOF
+          block: |
+                 NODENAME={{hostname_content.stdout.split('.')[0] }}
+ 
+ 
+       - copy:
+            src: /root/lter_vcs_gimhae/rpm/RMQ/rabbitmq_message_timestamp-20170830-3.7.x.ez
+            dest: /usr/lib/rabbitmq/lib/rabbitmq_server-3.7.13/plugins/
+ 
+       - name: Start and enable RMQ server
+         systemd:
+           state: restarted
+           enabled : yes
+           name : rabbitmq-server
+ 
+       - name: Enables the rabbitmq_management plugin
+         rabbitmq_plugin:
+            names: rabbitmq_management,rabbitmq_message_timestamp
+            state: enabled
+ 
+       - name: add users
+         rabbitmq_user:
+           user: vcm
+           password: vcm.123
+           node: "{{hostname_content.stdout.split('.')[0] }}"
+           configure_priv: .*
+           read_priv: .*
+           write_priv: .*
+           tags : administrator
+           state: present

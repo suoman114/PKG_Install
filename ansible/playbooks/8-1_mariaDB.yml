@@ -1,0 +1,108 @@
+- hosts: vcs
+  remote_user: root
+  vars:
+       new_password: root.123
+       vcsm_password: vcsm.123
+       database_name: VCSM
+       initial_dump: LTE_R_DB_init.sql
+ 
+  tasks:
+       
+       - name: install rpm files
+         yum:
+             name: mariadb
+             state: absent
+         ignore_errors: True
+ 
+       # rpm files install
+       - copy:
+             src: /root/lter_vcs_gimhae/rpm/MariaDB_el8/
+#             src: /root/lter_vcs_gimhae/rpm/MariaDB/
+             dest: /root/rpm/MariaDB/
+ 
+       # Get a list of rpms from a directory
+ 
+       - name: find rpm files and register the result
+         find:
+             paths: /root/rpm/MariaDB/
+             patterns: "*.rpm"
+         register: rpm_files
+ 
+       # Create a list of the rpms to use with the yum install command
+       - set_fact:
+             rpm_lists: "{{ rpm_files.files | map(attribute='path') | list}} "
+ 
+         # Use yum to install with a list 
+       - name: install rpm files
+         yum:
+             name: "{{rpm_lists}}"
+             state: present
+             disable_gpg_check: yes
+
+ 
+       - name: Overwrite MariaDB config file
+         copy:
+            src: /root/lter_vcs_gimhae/vcs_conf/my.cnf
+            dest: /etc/my.cnf
+            mode: 0644
+
+       - name: server-id 값 치환
+         lineinfile:
+           path: "/etc/my.cnf"
+           regexp: '^server-id\s*='
+           line: "server-id = {{ server_id }}"
+
+
+
+       - name: chown and chmod
+         file:
+            path: '{{ item }}'
+            owner: mysql
+            group: mysql
+            state: directory
+            mode: 04755
+
+         with_items:
+            - /var/log/mysql
+ 
+       - name: Start and enable mariadb
+         systemd:
+              state: restarted
+              enabled : yes
+              name : mariadb
+ 
+       - name: create database
+         mysql_db:
+           name: "{{ database_name }}"
+           state: present
+           login_user: root
+           login_password: "{{new_password}}"
+ 
+       - name: Import file.sql similar to mysql -u <username> -p <password> < hostname.sql
+         mysql_db:
+           state: import
+           name: "{{ database_name }}"
+           target: /root/rpm/MariaDB/{{ initial_dump }}
+           login_user: root
+           login_password: "{{new_password}}"
+ 
+       - name: create vcsm account
+         mysql_user:
+           name: vcsm
+           password: "{{ vcsm_password }}"
+           priv: '{{ database_name }}.*:ALL'
+           state: present
+           login_user: root
+           login_password: "{{new_password}}"
+           host: '%'
+
+    # Grant privileges to the vcsm user on the VCSM database from localhost
+       - name: Grant privileges to vcsm from localhost
+         mysql_user:
+           name: vcsm
+           password: "{{ vcsm_password }}"
+           priv: "{{ database_name }}.*:ALL"
+           state: present
+           login_user: root
+           login_password: "{{ new_password }}"
+           host: 'localhost'

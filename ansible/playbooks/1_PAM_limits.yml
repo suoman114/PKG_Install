@@ -1,0 +1,160 @@
+- hosts: vcs
+  remote_user: root
+  tasks:
+  - name: Add or modify nofile soft limit for the vcs Group
+    pam_limits:
+      domain: root
+      limit_type: soft
+      limit_item: nofile
+      value: 65535
+ 
+  - name: Add or modify nofile hard limit for the vcs Group
+    pam_limits:
+      domain: root
+      limit_type: hard
+      limit_item: nofile
+      value: 65535
+ 
+  - name: Add or modify stack soft limit for the vcs Group
+    pam_limits:
+     domain: root
+     limit_type: soft
+     limit_item: stack
+     value: 65535
+ 
+  - name: Add or modify stack hard limit for the vcs Group
+    pam_limits:
+     domain: root
+     limit_type: hard
+     limit_item: stack
+     value: 65535
+ 
+ 
+  - name: Add or modify nproc soft limit for the vcs Group
+    pam_limits:
+     domain: root
+     limit_type: soft
+     limit_item: nproc
+     value: 65535
+ 
+  - name: Add or modify nproc hard limit for the vcs Group
+    pam_limits:
+     domain: root
+     limit_type: hard
+     limit_item: nproc
+     value: 65535
+ 
+ 
+  - name: Add or modify nofile soft limit for the vcs Group
+    pam_limits:
+     domain: '@vcs'
+     limit_type: soft
+     limit_item: nofile
+     value: 65535
+ 
+  - name: Add or modify nofile hard limit for the vcs Group
+    pam_limits:
+     domain: '@vcs'
+     limit_type: hard
+     limit_item: nofile
+     value: 65535
+ 
+  - name: Add or modify stack soft limit for the vcs Group
+    pam_limits:
+     domain: '@vcs'
+     limit_type: soft
+     limit_item: stack
+     value: 65535
+ 
+  - name: Add or modify stack hard limit for the vcs Group
+    pam_limits:
+     domain: '@vcs'
+     limit_type: hard
+     limit_item: stack
+     value: 65535
+ 
+ 
+  - name: Add or modify nproc soft limit for the vcs Group
+    pam_limits:
+     domain: '@vcs'
+     limit_type: soft
+     limit_item: nproc
+     value: 65535
+ 
+  - name: Add or modify nproc hard limit for the vcs Group
+    pam_limits:
+     domain: '@vcs'
+     limit_type: hard
+     limit_item: nproc
+     value: 65535
+
+  - name: Add or modify core soft limit for the vcs Group
+    pam_limits:
+     domain: '@vcs'
+     limit_type: soft
+     limit_item: core
+     value: 20480
+
+  - name: Add or modify core hard limit for the vcs Group
+    pam_limits:
+     domain: '@vcs'
+     limit_type: hard
+     limit_item: core
+     value: 20480
+
+  - name: Add or modify nofile soft limit for the vcweb Group
+    pam_limits:
+     domain: '@vcweb'
+     limit_type: soft
+     limit_item: nofile
+     value: 65535
+
+  - name: Add or modify nofile hard limit for the vcweb Group
+    pam_limits:
+     domain: '@vcweb'
+     limit_type: hard
+     limit_item: nofile
+     value: 65535
+
+  - name: Add or modify stack soft limit for the vcweb Group
+    pam_limits:
+     domain: '@vcweb'
+     limit_type: soft
+     limit_item: stack
+     value: 65535
+
+  - name: Add or modify stack hard limit for the vcweb Group
+    pam_limits:
+     domain: '@vcweb'
+     limit_type: hard
+     limit_item: stack
+     value: 65535
+
+
+  - name: Add or modify nproc soft limit for the vcweb Group
+    pam_limits:
+     domain: '@vcweb'
+     limit_type: soft
+     limit_item: nproc
+     value: 65535
+
+  - name: Add or modify nproc hard limit for the vcweb Group
+    pam_limits:
+     domain: '@vcweb'
+     limit_type: hard
+     limit_item: nproc
+     value: 65535
+
+  - name: Add or modify core soft limit for the vcweb Group
+    pam_limits:
+     domain: '@vcweb'
+     limit_type: soft
+     limit_item: core
+     value: 20480
+
+  - name: Add or modify core hard limit for the vcweb Group
+    pam_limits:
+     domain: '@vcweb'
+     limit_type: hard
+     limit_item: core
+     value: 20480

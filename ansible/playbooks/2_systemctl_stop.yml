@@ -1,0 +1,81 @@
+- hosts: vcs 
+  remote_user: root
+  tasks:
+
+
+  - name: Disable cron hour,daily,monthly,yearly  
+    shell: "chmod 600  /etc/cron.*/*"
+ 
+  - name: Remove net-snmp rpm file manually 
+    shell: "rpm -e net-snmp-1:5.7.2-32.el7.x86_64"
+    register: result
+    ignore_errors: True
+    changed_when:
+      - '"is not installed" in result.stderr'
+      - result.rc == 1
+  
+  - name: Remove postfix  rpm file manually 
+    shell: "rpm -e postfix-2:2.10.1-6.el7.x86_64"
+    register: result
+    ignore_errors: True
+    changed_when:
+      - '"is not installed" in result.stderr'
+      - result.rc == 1
+
+
+###########need to use el8 
+  - name: Stop and Disable service NetworkManager (7 only)
+    systemd:
+      state: stopped
+      enabled : no
+      name : NetworkManager
+    ignore_errors: yes
+    when:
+        - ansible_distribution_major_version | int < 8
+
+  - name: Stop and Disable  chronyd
+    systemd:
+      state: stopped
+      enabled : no
+      name : chronyd
+    ignore_errors: yes
+    when:
+        - ansible_distribution_major_version | int < 8
+
+
+  - name: Stop and Disable  avahi-daemon
+    systemd:
+      state: stopped
+      enabled : no
+      name : avahi-daemon
+    ignore_errors: yes
+
+
+  - name: Stop and Disable  firewalld
+    systemd:
+      state: stopped
+      enabled : no
+      name : firewalld
+    ignore_errors: yes
+
+  - name: Rsyslog edit 1
+    replace:
+      path: /etc/rsyslog.conf
+      regexp: 'cron.none'
+      replace: "cron.none;local0.none"
+
+
+  - name: Rsysclog edit 2
+    lineinfile:
+      path: /etc/rsyslog.conf
+      state: present
+      insertafter:  '/var/log/boot.log'
+      line: "local0.*						/var/log/vcs.log"
+
+  - name: Restart rsyslog
+    systemd:
+      state: restarted
+      name : rsyslog
+
+
+
