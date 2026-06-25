@@ -56,7 +56,7 @@ chmod +x run_dev.sh
 
 ## 6. 인벤토리 편집 (노드 / 2-노드 HA)
 대시보드 좌측 **① 인벤토리** 패널(접기/펼치기):
-- 그룹 변수: `ansible_user`, `asset_root`
+- 그룹 변수: `ansible_user`, `asset_root` (플레이북 `src:`가 자산을 읽는 경로 — **자산 동기화(②)의 `asset_dest`와 일치**시킬 것. `⟸ 동기화경로` 버튼으로 자동 입력)
 - 노드별 폼: `노드명`, `ansible_host`, `server_id`(HA), `peer_ip`(복제 상대), `app_user`, `ramdisk_size`, `광 NIC`(쉼표 구분)
 - **+ 노드** / **삭제** 로 노드 증감, **💾 인벤토리 저장** 시 `hosts.ini` + `host_vars/<node>.yml` **재생성**
 - 검증: 노드명 형식/중복, `ansible_host` 필수, `server_id` 정수. 실패 시 사유 표시.

@@ -75,7 +75,9 @@
       <div class="gitrow" style="margin-top:8px">
         <input id="g_ansible_user" placeholder="ansible_user (예: root)" style="max-width:160px"/>
         <input id="g_asset_root" placeholder="asset_root (예: /root/lter_vcs_gimhae)"/>
+        <button onclick="useAssetDest()" title="자산 동기화(②) 경로로 맞춤">⟸ 동기화경로</button>
       </div>
+      <div class="githint">asset_root = 플레이북이 자산을 읽는 경로. 자산 동기화(②) asset_dest 와 일치시키세요.</div>
       <div id="nodes"></div>
       <div class="gitrow">
         <button onclick="addNode()">+ 노드</button>
@@ -186,6 +188,11 @@ function addNode(){
   renderNodes();
 }
 function removeNode(i){ INV.nodes.splice(i,1); renderNodes(); }
+function useAssetDest(){
+  const d=document.getElementById('asset_dest').value.trim();
+  if(d){ document.getElementById('g_asset_root').value=d;
+         setInvHint('asset_root 을 동기화 경로로 설정 — 저장 필요','ok'); }
+}
 function setInvHint(msg, cls){
   const el=document.getElementById('invhint');
   el.innerHTML = cls ? '<span class="'+cls+'">'+msg+'</span>' : msg;

@@ -170,7 +170,7 @@ PKG_Install/
 - 평문 비밀번호(`root.123` 등) → **Ansible Vault / 대시보드 입력**으로 이전
 - 버전 경로 하드코딩(RMQ 3.7.13, JDK 1.8.0.362, mariadb el8) → 변수/glob
 - NIC명 하드코딩(18) → 17 자동탐지 결과 재사용
-- 사이트 경로 `/root/lter_vcs_gimhae/` → `{{ asset_root }}` 변수화
+- ~~사이트 경로 `/root/lter_vcs_gimhae/` → `{{ asset_root }}` 변수화~~ **(완료)** — 플레이북 `src:` 22곳을 `{{ asset_root }}`(그룹변수)로 치환. 대시보드 인벤토리에서 편집, git `asset_dest`와 일치시킬 것.
 - 폐쇄망 NTP(04) 정책 확정(주석 해제/대체)
 
 ---

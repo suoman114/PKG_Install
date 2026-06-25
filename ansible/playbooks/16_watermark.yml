@@ -5,7 +5,7 @@
 
    - name: watermark png file copy
      copy:
-        src: /root/lter_vcs_gimhae/vcs_conf/watermark.png
+        src: "{{ asset_root }}/vcs_conf/watermark.png"
         dest: /home/vcs/REC/
         owner: vcs
         group: vcs

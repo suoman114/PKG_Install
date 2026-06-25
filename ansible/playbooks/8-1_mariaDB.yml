@@ -16,8 +16,8 @@
  
        # rpm files install
        - copy:
-             src: /root/lter_vcs_gimhae/rpm/MariaDB_el8/
-#             src: /root/lter_vcs_gimhae/rpm/MariaDB/
+             src: "{{ asset_root }}/rpm/MariaDB_el8/"
+#             src: "{{ asset_root }}/rpm/MariaDB/"
              dest: /root/rpm/MariaDB/
  
        # Get a list of rpms from a directory
@@ -42,7 +42,7 @@
  
        - name: Overwrite MariaDB config file
          copy:
-            src: /root/lter_vcs_gimhae/vcs_conf/my.cnf
+            src: "{{ asset_root }}/vcs_conf/my.cnf"
             dest: /etc/my.cnf
             mode: 0644
 

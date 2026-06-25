@@ -7,52 +7,52 @@
   tasks:
    - name: vcs bash shell copy
      unarchive:
-        src: /root/lter_vcs_gimhae/bash_vcs.tar.gz
+        src: "{{ asset_root }}/bash_vcs.tar.gz"
         dest: /home/vcs
 
    - name: vcsweb bash shell copy
      unarchive:
-        src: /root/lter_vcs_gimhae/bash_vcweb.tar.gz
+        src: "{{ asset_root }}/bash_vcweb.tar.gz"
         dest: /home/vcweb
 
    - name: vcs script copy     
      unarchive:
-        src: /root/lter_vcs_gimhae/vcs_conf/vcs_script.tar.gz
+        src: "{{ asset_root }}/vcs_conf/vcs_script.tar.gz"
         dest: /home/vcs
 
    - name: vcs script  shell copy
      unarchive:
-        src: /root/lter_vcs_gimhae/vcs_conf/vcweb_script.tar.gz
+        src: "{{ asset_root }}/vcs_conf/vcweb_script.tar.gz"
         dest: /home/vcweb
 
    - name: extract empty vcs_dic
      unarchive:
-        src: /root/lter_vcs_gimhae/vcs_conf/vcs_dic.tar.gz
+        src: "{{ asset_root }}/vcs_conf/vcs_dic.tar.gz"
         dest: /home/vcs
 
    - name: extract empty vcweb_dic
      unarchive:
-        src: /root/lter_vcs_gimhae/vcs_conf/vcweb_dic.tar.gz
+        src: "{{ asset_root }}/vcs_conf/vcweb_dic.tar.gz"
         dest: /home/vcweb
 
    - name: vcs_pkg copy
      unarchive:
-        src: /root/lter_vcs_gimhae/vcs_pkg/vcs_gimhae_pkg.tar.gz
+        src: "{{ asset_root }}/vcs_pkg/vcs_gimhae_pkg.tar.gz"
         dest: /home/vcs/
    
    - name: vcs_usttif copy
      unarchive:
-        src: /root/lter_vcs_gimhae/vcs_pkg/vcs_gimhae_usttif.tar.gz
+        src: "{{ asset_root }}/vcs_pkg/vcs_gimhae_usttif.tar.gz"
         dest: /home/vcs/
  
    - name: vcs_oam copy
      unarchive:
-        src: /root/lter_vcs_gimhae/vcs_pkg/vcs_oam.tar.gz
+        src: "{{ asset_root }}/vcs_pkg/vcs_oam.tar.gz"
         dest: /home/vcs
 
    - name: vcapi rpm copy
      copy:
-        src: /root/lter_vcs_gimhae/vcs_pkg/{{vcapi_rpm_name}}
+        src: "{{ asset_root }}/vcs_pkg/{{vcapi_rpm_name}}"
         dest: /root/rpm/api/
 
    - name: find rpm files and register the result
@@ -73,7 +73,7 @@
  
    - name: vcweb copy
      unarchive:
-        src: /root/lter_vcs_gimhae/vcs_pkg/vcweb_pkg.tar.gz
+        src: "{{ asset_root }}/vcs_pkg/vcweb_pkg.tar.gz"
         dest: /home/vcweb/
 
 

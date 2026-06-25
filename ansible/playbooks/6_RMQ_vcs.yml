@@ -3,7 +3,7 @@
   tasks:
        - debug: var=ansible_nodename
        - copy:
-            src: /root/lter_vcs_gimhae/rpm/RMQ/
+            src: "{{ asset_root }}/rpm/RMQ/"
             dest: /root/rpm/RMQ/
  
  
@@ -66,7 +66,7 @@
  
  
        - copy:
-            src: /root/lter_vcs_gimhae/rpm/RMQ/rabbitmq_message_timestamp-20170830-3.7.x.ez
+            src: "{{ asset_root }}/rpm/RMQ/rabbitmq_message_timestamp-20170830-3.7.x.ez"
             dest: /usr/lib/rabbitmq/lib/rabbitmq_server-3.7.13/plugins/
  
        - name: Start and enable RMQ server

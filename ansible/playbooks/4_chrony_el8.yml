@@ -2,7 +2,7 @@
   remote_user: root
   tasks:
 #    - copy:
-#        src: /root/lter_vcs_gimhae/rpm/ntp/
+#        src: "{{ asset_root }}/rpm/ntp/"
 #        dest: /root/rpm/ntp/
     
 #    - name: find rpm files and register the result

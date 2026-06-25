@@ -28,7 +28,7 @@ CLAUDE.md §2 아키텍처를 구현한다. **폐쇄망 + CentOS7 시스템 Pyth
 ## 남은 작업(백로그)
 - mock 실패 주입 토글(실패/재시도 UI 검증).
 - step별 로그 필터/검증결과 패널.
-- `asset_root`(인벤토리) ↔ git `asset_dest` 매핑(플레이북 하드코딩 경로 변수화).
+- (완료) 플레이북 `src:` 경로 `{{ asset_root }}` 변수화 + 인벤토리에서 git `asset_dest`로 맞춤 버튼.
 
 ## 프론트 산출물
 - 4-Phase 파이프라인 보드: step 카드 + 상태 배지 + 진행률.

@@ -3,7 +3,7 @@
   tasks:
        - debug: var=ansible_nodename
 #       - copy:
-#            src: /root/lter_vcs_gimhae/rpm/RMQ/
+#            src: "{{ asset_root }}/rpm/RMQ/"
 #            dest: /root/rpm/RMQ/
  
 

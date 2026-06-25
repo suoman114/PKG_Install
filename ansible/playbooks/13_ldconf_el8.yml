@@ -8,12 +8,12 @@
 
    - name: ld so config copy(oam)
      copy:
-        src: /root/lter_vcs_gimhae/vcs_conf/oam.conf
+        src: "{{ asset_root }}/vcs_conf/oam.conf"
         dest: /etc/ld.so.conf.d/
 
    - name: ld so config copy(java)
      copy:
-        src: /root/lter_vcs_gimhae/vcs_conf/java_el8.conf
+        src: "{{ asset_root }}/vcs_conf/java_el8.conf"
         dest: /etc/ld.so.conf.d/
 
    - name: setcap 
