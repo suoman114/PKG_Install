@@ -26,6 +26,10 @@ python3 -m pip install --user -r backend/requirements.txt
 상세는 **[docs/WSL_DEV.md](./docs/WSL_DEV.md)**. 사내망에서 Git으로 RPM/자산을
 선반입(자산 동기화) 후 폐쇄망 현장에서 OS→PKG→Config 설치를 진행한다.
 
+폐쇄망 파이썬 의존성은 오프라인 vendoring: `./scripts/vendor_fetch.sh`(사내망) →
+이관 → `./scripts/vendor_install.sh`(현장). 비밀번호는 대시보드 🔒 시크릿 패널에서
+입력(`group_vars/vcs.yml`, 커밋 안 됨).
+
 ## 개발 방식
 오케스트레이터(메인 Claude)가 작업을 분해해 전문 서브에이전트에 위임한다.
 모든 위임은 **token-guardian**의 토큰 예산·요약·중복차단 게이트를 거친다(CLAUDE.md §5).

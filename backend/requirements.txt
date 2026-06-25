@@ -1,6 +1,6 @@
 # CentOS7 / WSL 시스템 Python 3.6 호환 핀 (폐쇄망 vendoring 대상)
 # 설치(사내망, 인터넷 가능 시):  python3 -m pip install --user -r backend/requirements.txt
-# 폐쇄망 반입:  pip download -r backend/requirements.txt -d vendor/  → 대상서버에서 --no-index 설치
+# 폐쇄망 반입(오프라인):  ./scripts/vendor_fetch.sh  →  (이관)  →  ./scripts/vendor_install.sh
 Flask==2.0.3
 Werkzeug==2.0.3
 Jinja2==3.0.3

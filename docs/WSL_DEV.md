@@ -20,8 +20,14 @@ sudo yum install -y python3 python3-pip git
 cd <repo>/PKG_Install
 python3 -m pip install --user -r backend/requirements.txt
 ```
-> **폐쇄망 반입 시**: 사내망에서 `pip download -r backend/requirements.txt -d vendor/` →
-> 현장에서 `pip install --no-index --find-links vendor/ -r backend/requirements.txt`.
+> **폐쇄망 반입(오프라인 vendoring)**: 아래 스크립트 사용. 사내망/타깃은 **동일 OS·파이썬**(CentOS7·py3.6·x86_64) 권장.
+> ```bash
+> # 사내망(인터넷 O): 의존성 선반입 → vendor/
+> ./scripts/vendor_fetch.sh
+> # vendor/ 를 폐쇄망으로 이관 후 (인터넷 X): 오프라인 설치
+> ./scripts/vendor_install.sh
+> ```
+> 프론트엔드는 무빌드·무CDN(vanilla JS)이라 별도 vendoring 불필요. RPM/설치 자산은 대시보드 ② 자산 동기화(Git)로 선반입.
 
 ## 2. 실행
 ```bash
