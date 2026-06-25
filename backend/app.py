@@ -241,6 +241,12 @@ def secrets_set():
     return jsonify(out)
 
 
+@app.route("/api/git/stop", methods=["POST"])
+def git_stop():
+    ok, msg = gitassets.syncer.stop()
+    return jsonify({"stopping": ok, "message": msg})
+
+
 @app.route("/api/git/sync", methods=["POST"])
 def git_sync():
     if orchestrator.runner.running:

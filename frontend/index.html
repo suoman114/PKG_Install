@@ -26,6 +26,7 @@
   .node .grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
   .node .grid input{width:100%;box-sizing:border-box}
   .node .full{grid-column:1 / span 2}
+  .seclabel{font-size:11px;color:#7fc4ff;font-weight:600;margin:12px 0 5px}
   .node label{font-size:10px;color:var(--muted);display:block;margin-bottom:1px}
   .node input{background:#1a2029;border:1px solid var(--line);border-radius:5px;color:var(--fg);padding:5px 7px;font-size:11.5px;font-family:inherit}
   .xbtn{background:#3a2330;border:1px solid #5a2a3a;color:#ff9bb0;border-radius:5px;cursor:pointer;padding:4px 8px}
@@ -94,9 +95,15 @@
         <input id="g_ntp_ip2" placeholder="ntp_ip2 (선택)" style="max-width:200px"/>
       </div>
       <div class="githint">asset_root = 플레이북이 자산을 읽는 경로(자산 동기화 asset_dest와 일치). NTP는 폐쇄망 시각서버(04) — 비우면 timezone만 적용.</div>
+      <div class="seclabel" id="nodesLabel">등록된 노드</div>
       <div id="nodes"></div>
+      <div class="seclabel">노드 추가</div>
       <div class="gitrow">
-        <button onclick="addNode()">+ 노드</button>
+        <input id="addNodeName" placeholder="노드명 (예: vcs-node3)" style="max-width:190px"/>
+        <input id="addNodeHost" placeholder="ansible_host (IP)" style="max-width:190px"/>
+        <button onclick="addNodeFromForm()">+ 추가</button>
+      </div>
+      <div class="gitrow" style="margin-top:10px">
         <button id="invSaveBtn" class="primary" onclick="saveInventory()">💾 인벤토리 저장</button>
       </div>
       <div class="githint" id="invhint">—</div>
@@ -135,6 +142,7 @@
         <input id="asset_dest" placeholder="asset_dest 경로"/>
         <button onclick="saveGit()">저장</button>
         <button class="primary" onclick="syncGit()">⤓ Clone/Pull</button>
+        <button class="danger" onclick="stopGit()">■ 중지</button>
       </div>
       <div class="githint" id="githint">—</div>
     </div>
@@ -291,6 +299,10 @@ function clearInvDirty(){
 function esc(s){ return (s==null?'':String(s)).replace(/"/g,'&quot;'); }
 function renderNodes(){
   const box = document.getElementById('nodes'); box.innerHTML='';
+  const cnt=(INV.nodes||[]).length;
+  const lbl=document.getElementById('nodesLabel');
+  if(lbl) lbl.textContent='등록된 노드 ('+cnt+'대)';
+  if(cnt===0){ box.innerHTML='<div class="githint">등록된 노드가 없습니다. 아래 "노드 추가"로 등록하세요.</div>'; }
   (INV.nodes||[]).forEach((n,i)=>{
     const nics = (n.optical_nics||[]).join(', ');
     const d = document.createElement('div'); d.className='node';
@@ -324,11 +336,17 @@ function renderNodes(){
 function fld(i,k,label,v){
   return '<div><label>'+label+'</label><input data-i="'+i+'" data-k="'+k+'" value="'+esc(v)+'"/></div>';
 }
-function addNode(){
-  const n=(INV.nodes||[]).length+1;
-  INV.nodes.push({name:'vcs-node'+n, ansible_host:'', server_id:n, peer_ip:'', app_user:'vcs', ramdisk_size:'10g', optical_nics:[]});
+function addNodeFromForm(){
+  const nameEl=document.getElementById('addNodeName'), hostEl=document.getElementById('addNodeHost');
+  const name=nameEl.value.trim(), host=hostEl.value.trim();
+  if(!name){ setInvHint('노드명을 입력하세요.','bad'); nameEl.focus(); return; }
+  if(!/^[A-Za-z0-9._-]+$/.test(name)){ setInvHint('노드명에 허용되지 않는 문자가 있습니다.','bad'); return; }
+  if((INV.nodes||[]).some(n=>n.name===name)){ setInvHint('이미 등록된 노드명입니다: '+name,'bad'); return; }
+  const sid=(INV.nodes||[]).reduce((m,n)=>Math.max(m, parseInt(n.server_id)||0),0)+1;
+  INV.nodes.push({name:name, ansible_host:host, server_id:sid, peer_ip:'', app_user:'vcs', ramdisk_size:'10g', optical_nics:[]});
+  nameEl.value=''; hostEl.value='';
   renderNodes(); populateTargets(); markInvDirty();
-  setInvHint('노드 추가됨 ('+INV.nodes.length+') — 변경 적용하려면 💾 저장','warn');
+  setInvHint('노드 추가됨 ('+name+', '+INV.nodes.length+'대) — 💾 저장 필요','warn');
 }
 function removeNode(i){
   const nm=(INV.nodes[i]||{}).name||'';
@@ -390,6 +408,11 @@ async function syncGit(){
   const r=await fetch('/api/git/sync',{method:'POST'});
   if(!r.ok){ const e=await r.json(); addLog('⚠ '+(e.error||'동기화 실패'),'warn'); }
   else { addLog('자산 동기화 시작...','head'); }
+}
+async function stopGit(){
+  const r=await fetch('/api/git/stop',{method:'POST'});
+  const d=await r.json();
+  addLog(d.stopping?'자산 동기화 중지 요청...':('⚠ '+(d.message||'중지 불가')),'warn');
 }
 function val(id){ return document.getElementById(id).value.trim(); }
 

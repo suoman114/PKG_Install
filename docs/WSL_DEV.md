@@ -41,6 +41,7 @@ chmod +x run_dev.sh
 1. `git URL`, `branch`, `asset_dest`(자산 저장 경로) 입력 → **저장**
 2. **⤓ Clone/Pull** 클릭 → 진행 로그가 우측 로그 패널에 실시간 스트리밍
 3. 완료 시 `files=N rpm=M` 요약 + "저장소 존재" 표시
+4. **■ 중지**: 진행 중인 clone/pull을 즉시 종료. 신규 clone 중지 시 **부분 받은 디렉토리는 자동 정리**.
 
 **사설 저장소(id/pw·토큰)**: `사용자` + `비밀번호/토큰` 입력 후 저장.
 - http(s) 저장소에 `Authorization: Basic` 헤더로 전달 → **`.git/config`에 저장 안 됨**, 로그엔 **마스킹**(`***`).
@@ -76,8 +77,9 @@ chmod +x run_dev.sh
 ## 6. 인벤토리 편집 (노드 / 2-노드 HA)
 대시보드 좌측 **① 인벤토리** 패널(접기/펼치기):
 - 그룹 변수: `ansible_user`, `asset_root` (플레이북 `src:`가 자산을 읽는 경로 — **자산 동기화(②)의 `asset_dest`와 일치**시킬 것. `⟸ 동기화경로` 버튼으로 자동 입력), `ntp_ip1`/`ntp_ip2` (폐쇄망 NTP — 비우면 04는 timezone만 적용)
-- 노드별 폼: `노드명`, `ansible_host`, `server_id`(HA), `peer_ip`(복제 상대), `app_user`, `ramdisk_size`, `광 NIC`(쉼표 구분)
-- **+ 노드** / **삭제** 로 노드 증감, **💾 인벤토리 저장** 시 `hosts.ini` + `host_vars/<node>.yml` **재생성**
+- **등록된 노드 (N대)**: 등록된 노드를 카드 리스트로 관리(편집·삭제). 필드: `노드명`, `ansible_host`, `server_id`(HA), `peer_ip`(복제 상대), `app_user`, `ramdisk_size`, `광 NIC`(쉼표 구분)
+- **노드 추가**: 전용 입력폼(`노드명` + `ansible_host`) → **+ 추가** (server_id 자동, 중복·형식 검증). 추가 후 리스트에서 세부 편집
+- 변경은 화면에 staged → **💾 인벤토리 저장** 시 `hosts.ini` + `host_vars/<node>.yml` **재생성**
 - 검증: 노드명 형식/중복, `ansible_host` 필수, `server_id` 정수. 실패 시 사유 표시.
 
 > 저장은 표준 템플릿으로 재생성하므로 주석/NTP 플레이스홀더는 유지되지만, 폼 외 커스텀 변수를
