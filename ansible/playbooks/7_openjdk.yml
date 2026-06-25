@@ -3,7 +3,7 @@
   tasks:
       
        - copy:
-             src: /root/lter_vcs_gimhae/rpm/openjdk/  
+             src: "{{ asset_root }}/rpm/openjdk/"
              dest: /root/rpm/openjdk/  
 
        # Get a list of rpms from a directory

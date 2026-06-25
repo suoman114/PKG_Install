@@ -1,72 +1,75 @@
 """
-app.py — FastAPI 엔트리 (대시보드 백엔드)
+app.py — Flask 엔트리 (대시보드 백엔드)
+
+CentOS7 시스템 Python 3.6 호환을 위해 Flask(동기) + 스레드 기반 실행 엔진 사용.
 
 라우트:
-  GET  /                 대시보드 정적 페이지
-  GET  /api/pipeline     step 정의 + phase 목록
-  GET  /api/status       step별 현재 상태
-  GET  /api/inventory    hosts.ini / host_vars 내용
-  POST /api/run          실행 시작 {scope: all|phase|step, id?, target?}
-  POST /api/stop         실행 중지
-  POST /api/reset        상태/로그 초기화
-  GET  /api/logs/stream  SSE 실시간 로그
-  GET  /api/logs         로그 폴링(after_id)
-  GET  /api/report       간이 결과 요약(JSON)  ※ 정식 보고서는 report-agent가 확장
+  GET  /                  대시보드 정적 페이지
+  GET  /api/pipeline      step 정의 + phase 목록 + mode
+  GET  /api/status        step별 현재 상태
+  GET  /api/inventory     hosts.ini / host_vars 내용
+  POST /api/run           실행 시작 {scope: all|phase|step, id?, target?}
+  POST /api/stop          실행 중지
+  POST /api/reset         상태/로그 초기화
+  GET  /api/logs          로그 폴링(after_id)
+  GET  /api/logs/stream   SSE 실시간 로그
+  GET  /api/report        간이 결과 요약(JSON)
+  GET  /api/git           git 자산 설정/상태
+  POST /api/git/config    git 설정 저장 {git_url, git_branch, asset_dest}
+  POST /api/git/sync      clone/pull 실행
 """
-import asyncio
 import json
 import os
+import queue
 
-from fastapi import FastAPI, Request
-from fastapi.responses import (FileResponse, JSONResponse, StreamingResponse)
+from flask import Flask, Response, jsonify, request, send_from_directory
 
-from . import orchestrator, pipeline, state
+from . import gitassets, inventory, orchestrator, pipeline, report, secrets, state
+from .events import bus
 
 BASE = os.path.dirname(os.path.dirname(__file__))
 FRONTEND = os.path.join(BASE, "frontend")
 ANSIBLE_DIR = orchestrator.ANSIBLE_DIR
 
-app = FastAPI(title="LTE-R VCS PKG Install Dashboard")
+app = Flask(__name__)
+
+state.init_db()
+state.seed_steps(pipeline.all_step_ids())
 
 
-@app.on_event("startup")
-def _startup():
-    state.init_db()
-    state.seed_steps(pipeline.all_step_ids())
-
-
-@app.get("/")
+@app.route("/")
 def index():
-    return FileResponse(os.path.join(FRONTEND, "index.html"))
+    return send_from_directory(FRONTEND, "index.html")
 
 
-@app.get("/api/pipeline")
+@app.route("/api/pipeline")
 def get_pipeline():
-    return {
+    return jsonify({
         "mode": orchestrator.MODE,
         "phases": [{"key": k, "label": v} for k, v in pipeline.PHASES],
         "steps": pipeline.as_dicts(),
-    }
+    })
 
 
-@app.get("/api/status")
+@app.route("/api/status")
 def get_status():
-    return {"steps": state.get_all_status()}
+    return jsonify({"steps": state.get_all_status()})
 
 
-@app.get("/api/inventory")
+@app.route("/api/inventory")
 def get_inventory():
-    out = {"hosts": None, "host_vars": {}}
-    inv = os.path.join(ANSIBLE_DIR, "inventory", "hosts.ini")
-    if os.path.isfile(inv):
-        with open(inv, "r", encoding="utf-8") as f:
-            out["hosts"] = f.read()
-    hv_dir = os.path.join(ANSIBLE_DIR, "inventory", "host_vars")
-    if os.path.isdir(hv_dir):
-        for name in sorted(os.listdir(hv_dir)):
-            with open(os.path.join(hv_dir, name), "r", encoding="utf-8") as f:
-                out["host_vars"][name] = f.read()
-    return out
+    return jsonify(inventory.read_inventory())
+
+
+@app.route("/api/inventory", methods=["POST"])
+def save_inventory():
+    if orchestrator.runner.running:
+        return jsonify({"error": "실행 중에는 인벤토리를 저장할 수 없습니다."}), 409
+    body = request.get_json(force=True, silent=True) or {}
+    errors = inventory.write_inventory(body)
+    if errors:
+        return jsonify({"error": "검증 실패", "errors": errors}), 400
+    return jsonify(inventory.read_inventory())
 
 
 def _resolve_step_ids(scope, step_id):
@@ -79,78 +82,133 @@ def _resolve_step_ids(scope, step_id):
     return []
 
 
-@app.post("/api/run")
-async def run(request: Request):
-    body = await request.json()
+@app.route("/api/run", methods=["POST"])
+def run():
+    body = request.get_json(force=True, silent=True) or {}
     scope = body.get("scope", "all")
     step_id = body.get("id")
     target = body.get("target", "all")
-    if orchestrator.runner.running:
-        return JSONResponse({"error": "이미 실행 중입니다."}, status_code=409)
+    idempotency = bool(body.get("idempotency"))
+    if orchestrator.runner.running or gitassets.syncer.running:
+        return jsonify({"error": "다른 작업이 실행 중입니다."}), 409
     step_ids = _resolve_step_ids(scope, step_id)
     if not step_ids:
-        return JSONResponse({"error": "실행할 step이 없습니다."}, status_code=400)
-    loop = asyncio.get_event_loop()
-    orchestrator.runner.start(loop, step_ids, scope, "{}".format(target))
-    return {"started": step_ids, "scope": scope, "target": target}
+        return jsonify({"error": "실행할 step이 없습니다."}), 400
+    orchestrator.runner.start(step_ids, scope, "{}".format(target), idempotency=idempotency)
+    return jsonify({"started": step_ids, "scope": scope, "target": target,
+                    "idempotency": idempotency})
 
 
-@app.post("/api/stop")
+@app.route("/api/stop", methods=["POST"])
 def stop():
     orchestrator.runner.stop()
-    return {"stopping": True}
+    return jsonify({"stopping": True})
 
 
-@app.post("/api/reset")
+@app.route("/api/reset", methods=["POST"])
 def reset():
     if orchestrator.runner.running:
-        return JSONResponse({"error": "실행 중에는 초기화할 수 없습니다."}, status_code=409)
+        return jsonify({"error": "실행 중에는 초기화할 수 없습니다."}), 409
     state.reset_all(pipeline.all_step_ids())
-    return {"reset": True}
+    return jsonify({"reset": True})
 
 
-@app.get("/api/logs")
-def logs(after_id: int = 0):
-    return {"logs": state.get_logs(after_id)}
+@app.route("/api/logs")
+def logs():
+    after_id = request.args.get("after_id", 0, type=int)
+    return jsonify({"logs": state.get_logs(after_id)})
 
 
-@app.get("/api/logs/stream")
-async def logs_stream(request: Request):
-    q = orchestrator.bus.subscribe()
+@app.route("/api/logs/stream")
+def logs_stream():
+    q = bus.subscribe()
 
-    async def gen():
+    def gen():
         try:
-            # 연결 직후 핑 1회
             yield "event: ping\ndata: {}\n\n"
             while True:
-                if await request.is_disconnected():
-                    break
                 try:
-                    ev = await asyncio.wait_for(q.get(), timeout=15)
+                    ev = q.get(timeout=15)
                     yield "data: {}\n\n".format(json.dumps(ev, ensure_ascii=False))
-                except asyncio.TimeoutError:
+                except queue.Empty:
                     yield "event: ping\ndata: {}\n\n"
         finally:
-            orchestrator.bus.unsubscribe(q)
+            bus.unsubscribe(q)
 
-    return StreamingResponse(gen(), media_type="text/event-stream")
+    headers = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+    return Response(gen(), mimetype="text/event-stream", headers=headers)
 
 
-@app.get("/api/report")
-def report():
-    """간이 집계(JSON). 정식 HTML/MD 보고서는 report-agent(backend/report.py)가 확장."""
-    statuses = state.get_all_status()
-    summary = {"success": 0, "failed": 0, "running": 0, "pending": 0, "skipped": 0}
-    for s in statuses.values():
-        summary[s["status"]] = summary.get(s["status"], 0) + 1
-    by_phase = {}
-    for st in pipeline.STEPS:
-        ph = st.phase
-        cur = statuses.get(st.id, {})
-        by_phase.setdefault(ph, []).append({
-            "id": st.id, "name": st.name, "playbook": st.playbook,
-            "status": cur.get("status", "pending"),
-            "changed": cur.get("changed", 0), "ok": cur.get("ok", 0),
-            "failed": cur.get("failed", 0), "verify": cur.get("verify"),
-        })
-    return {"mode": orchestrator.MODE, "summary": summary, "by_phase": by_phase}
+@app.route("/api/report")
+def get_report():
+    return jsonify(report.collect())
+
+
+@app.route("/api/report.md")
+def get_report_md():
+    body = report.to_markdown()
+    return Response(body, mimetype="text/markdown", headers={
+        "Content-Disposition": 'attachment; filename="vcs_install_report.md"'})
+
+
+@app.route("/api/report.html")
+def get_report_html():
+    dl = request.args.get("download")
+    headers = {}
+    if dl:
+        headers["Content-Disposition"] = 'attachment; filename="vcs_install_report.html"'
+    return Response(report.to_html(), mimetype="text/html", headers=headers)
+
+
+# ---- Git 자산 동기화 ----
+@app.route("/api/git")
+def git_get():
+    cfg = gitassets.get_config()
+    dest = cfg["asset_dest"]
+    cfg["exists"] = os.path.isdir(os.path.join(dest, ".git"))
+    cfg["status"] = gitassets.syncer.last_status
+    cfg["running"] = gitassets.syncer.running
+    return jsonify(cfg)
+
+
+@app.route("/api/git/config", methods=["POST"])
+def git_config():
+    body = request.get_json(force=True, silent=True) or {}
+    cfg = gitassets.set_config(
+        git_url=body.get("git_url"),
+        git_branch=body.get("git_branch"),
+        asset_dest=body.get("asset_dest"),
+    )
+    return jsonify(cfg)
+
+
+@app.route("/api/secrets")
+def secrets_get():
+    return jsonify(secrets.status())
+
+
+@app.route("/api/secrets", methods=["POST"])
+def secrets_set():
+    body = request.get_json(force=True, silent=True) or {}
+    ok, msg = secrets.write(body)
+    if not ok:
+        return jsonify({"error": msg}), 400
+    out = secrets.status()
+    out["message"] = msg
+    return jsonify(out)
+
+
+@app.route("/api/git/sync", methods=["POST"])
+def git_sync():
+    if orchestrator.runner.running:
+        return jsonify({"error": "파이프라인 실행 중에는 동기화할 수 없습니다."}), 409
+    ok, msg = gitassets.syncer.start()
+    if not ok:
+        return jsonify({"error": msg}), 400
+    return jsonify({"syncing": True, "message": msg})
+
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", "8800"))
+    # threaded=True: SSE 스트림과 실행 스레드 동시 처리
+    app.run(host="0.0.0.0", port=port, threaded=True)

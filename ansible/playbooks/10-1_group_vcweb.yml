@@ -11,8 +11,9 @@
  
   tasks:
    - name: Generate encrypted passwd
-     shell: openssl passwd -salt 'some_plain_salt' -1 '{{var1}}.123'
+     shell: openssl passwd -salt '{{ account_salt | default("lterVcsSalt") }}' -1 '{{ vcweb_os_password }}'
      register: passwd
+     no_log: true
  
  
    - debug: var=passwd

@@ -5,3 +5,6 @@ backend/state.db
 vendor/
 .venv/
 reports/
+assets/
+# 시크릿(그룹변수) — 평문/Vault 비밀번호. 절대 커밋 금지(.example만 추적)
+ansible/inventory/group_vars/vcs.yml

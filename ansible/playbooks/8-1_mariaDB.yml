@@ -1,8 +1,8 @@
 - hosts: vcs
   remote_user: root
   vars:
-       new_password: root.123
-       vcsm_password: vcsm.123
+       new_password: "{{ mariadb_root_password }}"
+       vcsm_password: "{{ mariadb_vcsm_password }}"
        database_name: VCSM
        initial_dump: LTE_R_DB_init.sql
  
@@ -16,8 +16,8 @@
  
        # rpm files install
        - copy:
-             src: /root/lter_vcs_gimhae/rpm/MariaDB_el8/
-#             src: /root/lter_vcs_gimhae/rpm/MariaDB/
+             src: "{{ asset_root }}/rpm/MariaDB_el8/"
+#             src: "{{ asset_root }}/rpm/MariaDB/"
              dest: /root/rpm/MariaDB/
  
        # Get a list of rpms from a directory
@@ -42,7 +42,7 @@
  
        - name: Overwrite MariaDB config file
          copy:
-            src: /root/lter_vcs_gimhae/vcs_conf/my.cnf
+            src: "{{ asset_root }}/vcs_conf/my.cnf"
             dest: /etc/my.cnf
             mode: 0644
 

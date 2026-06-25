@@ -39,9 +39,9 @@ OS Setup  →  PKG Install  →  Config Setup  →  결과 보고서
 └───────────────┬──────────────────────────────────────────────┘
                 │ REST + SSE/WebSocket
 ┌───────────────▼──────────────────────────────────────────────┐
-│                  Backend API (FastAPI, Python)                 │
+│              Backend API (Flask, Python 3.6 호환)              │
 │  - /api/inventory   - /api/run (phase/step)   - /api/logs(SSE) │
-│  - /api/status      - /api/report                              │
+│  - /api/status      - /api/report   - /api/git (자산 동기화)   │
 └───────┬───────────────────────┬───────────────────┬──────────┘
         │                       │                   │
 ┌───────▼────────┐   ┌──────────▼─────────┐   ┌─────▼──────────┐
@@ -73,12 +73,15 @@ PKG_Install/
 │   │   └── host_vars/<node>.yml  # server_id, peer_ip, NIC명, ramdisk_size ...
 │   └── playbooks/                # 25개 yml (단일 진실)
 ├── backend/
-│   ├── app.py                    # FastAPI 엔트리
-│   ├── orchestrator.py           # 파이프라인 실행/로그 캡처/검증
-│   ├── pipeline.py               # step 정의(§PIPELINE 표를 코드로)
-│   ├── state.py                  # SQLite 상태/이력
-│   └── report.py                 # 보고서 생성
-├── frontend/                     # 대시보드(SSE 로그, 파이프라인 보드)
+│   ├── app.py                    # Flask 엔트리(REST + SSE + git API)
+│   ├── orchestrator.py           # 파이프라인 실행/로그 캡처/검증(스레드 기반)
+│   ├── gitassets.py              # Git clone/pull 자산 동기화(사내망 선반입)
+│   ├── events.py                 # 공용 이벤트 버스(SSE 브로드캐스트)
+│   ├── pipeline.py               # step 정의(§3 표를 코드로)
+│   ├── state.py                  # SQLite 상태/이력/설정
+│   └── report.py                 # 보고서 생성(Markdown/HTML, 멱등성·검증 집계)
+├── frontend/                     # 대시보드(SSE 로그, 파이프라인 보드, 자산 동기화)
+├── assets/                       # git 동기화로 받은 RPM/파일(asset_dest, gitignore)
 ├── vendor/                       # 오프라인 의존성(폐쇄망)
 └── .claude/agents/               # 서브에이전트 정의(오케스트레이션)
 ```
@@ -164,20 +167,20 @@ PKG_Install/
 ---
 
 ## 7. 보안/리팩토링 백로그 (product가 흡수)
-- 평문 비밀번호(`root.123` 등) → **Ansible Vault / 대시보드 입력**으로 이전
+- ~~평문 비밀번호(`root.123` 등) → **대시보드 입력**으로 이전~~ **(완료)** — 0/6/8-1/8-3/9-1/10-1의 평문 비밀번호 7종(OS계정 vcs/vcweb 포함)을 `group_vars/vcs.yml`(gitignore, 0600) 변수로 외부화. 대시보드 "🔒 시크릿" 패널에서 입력(값은 API로 반환 안 함, `no_log`). 강화 시 `ansible-vault encrypt`.
 - 버전 경로 하드코딩(RMQ 3.7.13, JDK 1.8.0.362, mariadb el8) → 변수/glob
 - NIC명 하드코딩(18) → 17 자동탐지 결과 재사용
-- 사이트 경로 `/root/lter_vcs_gimhae/` → `{{ asset_root }}` 변수화
-- 폐쇄망 NTP(04) 정책 확정(주석 해제/대체)
+- ~~사이트 경로 `/root/lter_vcs_gimhae/` → `{{ asset_root }}` 변수화~~ **(완료)** — 플레이북 `src:` 22곳을 `{{ asset_root }}`(그룹변수)로 치환. 대시보드 인벤토리에서 편집, git `asset_dest`와 일치시킬 것.
+- ~~폐쇄망 NTP(04) 정책 확정(주석 해제/대체)~~ **(완료)** — 04를 el8 chrony로 재작성. 인벤토리 그룹변수 `ntp_ip1`(필수)·`ntp_ip2`(선택) 설정 시에만 공인 pool 주석처리+사이트 NTP 등록+chronyd 기동+초기 step 동기화(핸들러로 멱등성 유지). 미설정 시 timezone만 적용. 대시보드 인벤토리 패널에서 NTP IP 편집.
 
 ---
 
 ## 8. 개발 단계 로드맵 (orchestrator 기본 계획)
-1. **M1 골격**: `pipeline.py`(step 정의=§3 표), `PIPELINE.md`, inventory 예시, ansible.cfg
-2. **M2 엔진**: `orchestrator.py`(ansible 호출/로그 캡처/검증), `state.py`(SQLite)
-3. **M3 대시보드**: FastAPI + SSE 로그 + 파이프라인 보드 + 시작/중지/재시도
-4. **M4 보고서**: `report.py`(단계결과·검증·멱등성 집계 → HTML/MD)
-5. **M5 강화**: Vault/오프라인 vendoring/HA 2노드 시나리오/멱등성 회귀
+1. ~~**M1 골격**~~ ✅: `pipeline.py`(step 정의=§3 표), inventory 예시
+2. ~~**M2 엔진**~~ ✅: `orchestrator.py`(ansible 호출/로그 캡처/검증, 스레드), `state.py`(SQLite)
+3. ~~**M3 대시보드**~~ ✅: **Flask** + SSE 로그 + 파이프라인 보드 + 시작/중지/재시도 + Git 자산동기화 + 인벤토리 편집
+4. ~~**M4 보고서**~~ ✅: `report.py`(단계결과·검증·멱등성 집계 → HTML/MD, `/api/report.md|.html`)
+5. **M5 강화**: ~~HA 2노드 분리실행(`--limit`)~~ ✅ · ~~멱등성 2회 회귀(changed=0, 보고서 반영)~~ ✅ · ~~비밀번호 외부화(group_vars/시크릿 패널)~~ ✅ · ~~오프라인 vendoring(`scripts/vendor_*.sh`)~~ ✅
 
 ---
 

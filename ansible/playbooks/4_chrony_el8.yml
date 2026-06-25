@@ -1,70 +1,47 @@
 - hosts: vcs
   remote_user: root
   tasks:
-#    - copy:
-#        src: /root/lter_vcs_gimhae/rpm/ntp/
-#        dest: /root/rpm/ntp/
-    
-#    - name: find rpm files and register the result
-#      find:
-#        paths: /root/rpm/ntp/
-#        patterns: "*.rpm"
-#      register: rpm_files
-
-#    - set_fact:
-#        rpm_lists: "{{ rpm_files.files | map(attribute='path') | list }}"
-    
-#    - name: install rpm files
-#      yum:
-#        name: "{{ rpm_lists }}"
-#        state: present
-
-#    - name: Stop ntp
-#      systemd:
-#        state: stopped
-#        enabled: yes
-#        name: chrony
-
-#    - name: Add manual ntp server1
-#      lineinfile:
-#        path: /etc/chrony.conf
-#        state: present
-#        insertafter: 'server 3.centos.pool.ntp.org iburst'
-#        line: "server {{ ntp_ip1 }}"
-
-#    - name: Add manual ntp server2
-#      lineinfile:
-#        path: /etc/ntp.conf
-#        state: present
-#        insertafter: 'server 3.centos.pool.ntp.org iburst'
- #       line: "server {{ ntp_ip2 }}"
-
-#    - name: Sync time initially with ntp_ip1
-#      shell: |
-#        chronydate {{ ntp_ip1 }}
-#        hwclock --systohc
-#      args:
-#        warn: false
-
-#    - name: Remove the default DNS server (centos)
-##      lineinfile:
-#        path: /etc/ntp.conf
-#        state: absent
-#        regexp: 'centos.pool.ntp.org iburst'
-
-#    - name: Remove the default DNS server (rhel)
-##      lineinfile:
-#        path: /etc/ntp.conf
-#        state: absent
-#        regexp: 'rhel.pool.ntp.org iburst'
-
-#    - name: start ntp server
-#      systemd:
-#        state: started
-#        enabled: yes
-#        name: chronyd
-
     - name: set timezone to Asia/Seoul
       timezone:
         name: Asia/Seoul
 
+    # ── 폐쇄망 NTP (chrony / el8) ─────────────────────────────────────────
+    # 인벤토리 그룹/host_vars 에 ntp_ip1(필수)·ntp_ip2(선택)가 설정된 경우에만 적용.
+    # 미설정 시 timezone 만 적용하고 NTP 작업은 건너뛴다(폐쇄망에 NTP 서버가 없을 수 있음).
+    - name: NTP - 공인 pool 서버 주석 처리(air-gapped)
+      replace:
+        path: /etc/chrony.conf
+        regexp: '^(server\s+\S*pool\.ntp\.org.*)$'
+        replace: '# \1'
+      when: ntp_ip1 is defined
+      notify: restart chronyd
+
+    - name: NTP - 사이트 NTP 서버 등록
+      blockinfile:
+        path: /etc/chrony.conf
+        marker: "# {mark} ANSIBLE MANAGED NTP (LTE-R)"
+        block: |
+          server {{ ntp_ip1 }} iburst
+          {% if ntp_ip2 is defined %}server {{ ntp_ip2 }} iburst{% endif %}
+      when: ntp_ip1 is defined
+      notify: restart chronyd
+
+    - name: NTP - chronyd 활성화/기동
+      systemd:
+        name: chronyd
+        state: started
+        enabled: yes
+      when: ntp_ip1 is defined
+
+    - name: NTP - 초기 시각 강제 동기화(step) + hwclock
+      shell: |
+        chronyc -a makestep
+        hwclock --systohc
+      when: ntp_ip1 is defined
+      changed_when: false
+
+  handlers:
+    - name: restart chronyd
+      systemd:
+        name: chronyd
+        state: restarted

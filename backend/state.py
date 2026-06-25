@@ -33,7 +33,8 @@ def init_db():
                 failed    INTEGER DEFAULT 0,
                 started   REAL,
                 ended     REAL,
-                verify    TEXT
+                verify    TEXT,
+                idem      TEXT
             );
             CREATE TABLE IF NOT EXISTS logs (
                 id      INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,7 +52,34 @@ def init_db():
                 ended   REAL,
                 status  TEXT
             );
+            CREATE TABLE IF NOT EXISTS settings (
+                key   TEXT PRIMARY KEY,
+                value TEXT
+            );
             """
+        )
+        # 기존 DB 마이그레이션: 누락 컬럼 보강 (CentOS7 SQLite는 ADD COLUMN 지원)
+        cols = {r["name"] for r in _conn.execute("PRAGMA table_info(step_status)")}
+        if "idem" not in cols:
+            _conn.execute("ALTER TABLE step_status ADD COLUMN idem TEXT")
+        _conn.commit()
+
+
+def get_setting(key, default=None):
+    with _lock:
+        row = _conn.execute(
+            "SELECT value FROM settings WHERE key=?", (key,)
+        ).fetchone()
+    return row["value"] if row else default
+
+
+def set_setting(key, value):
+    # CentOS7 시스템 SQLite(3.7)는 UPSERT(ON CONFLICT DO UPDATE) 미지원 →
+    # INSERT OR REPLACE 사용 (settings는 key/value 2컬럼이라 안전).
+    with _lock:
+        _conn.execute(
+            "INSERT OR REPLACE INTO settings(key, value) VALUES (?,?)",
+            (key, value),
         )
         _conn.commit()
 
@@ -70,7 +98,7 @@ def seed_steps(step_ids):
 def set_status(step_id, status, **fields):
     cols = ["status"]
     vals = [status]
-    for k in ("changed", "ok", "failed", "started", "ended", "verify"):
+    for k in ("changed", "ok", "failed", "started", "ended", "verify", "idem"):
         if k in fields:
             cols.append(k)
             vals.append(fields[k])
@@ -114,7 +142,7 @@ def reset_all(step_ids):
     with _lock:
         _conn.execute("DELETE FROM logs")
         _conn.execute("UPDATE step_status SET status='pending', changed=0, ok=0, "
-                      "failed=0, started=NULL, ended=NULL, verify=NULL")
+                      "failed=0, started=NULL, ended=NULL, verify=NULL, idem=NULL")
         _conn.commit()
     seed_steps(step_ids)
 
@@ -137,3 +165,11 @@ def end_run(run_id, status):
             (time.time(), status, run_id),
         )
         _conn.commit()
+
+
+def get_runs(limit=20):
+    with _lock:
+        rows = _conn.execute(
+            "SELECT * FROM runs ORDER BY id DESC LIMIT ?", (limit,)
+        ).fetchall()
+    return [dict(r) for r in rows]

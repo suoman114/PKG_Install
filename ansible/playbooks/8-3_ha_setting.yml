@@ -3,7 +3,7 @@
   remote_user: root
   vars:
     replication_user: replication
-    replication_pass: repl.123
+    replication_pass: "{{ replication_password }}"
     peer_ip: "{{ hostvars[inventory_hostname]['peer_ip'] }}"
     server_id: "{{ hostvars[inventory_hostname]['server_id'] }}"
     gtid_cnf_file: /etc/my.cnf.d/replication_gtid.cnf

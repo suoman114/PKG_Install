@@ -13,10 +13,22 @@ LTE-R(철도 통합무선망) **녹취서버 VCS**를 **폐쇄망**에서 자동
 ```
 ansible/playbooks/   # 실제 설치 작업(00~18) — 단일 진실
 ansible/inventory/   # vcs 그룹, 2노드 HA host_vars
-backend/             # (개발 예정) FastAPI + 오케스트레이션 엔진 + 보고서
-frontend/            # (개발 예정) 대시보드(SSE 로그)
-docs/                # 분석/파이프라인 문서
+backend/             # Flask + 오케스트레이션 엔진 + git 자산 동기화 + 보고서 (M3·M4)
+frontend/            # 대시보드(SSE 로그, 4-Phase 보드, 자산 동기화, 인벤토리 편집, 보고서)
+docs/                # 분석/파이프라인 문서, WSL 실행 가이드
 ```
+
+## 빠른 실행 (WSL CentOS7)
+```bash
+python3 -m pip install --user -r backend/requirements.txt
+./run_dev.sh                 # mock 모드 → http://localhost:8800
+```
+상세는 **[docs/WSL_DEV.md](./docs/WSL_DEV.md)**. 사내망에서 Git으로 RPM/자산을
+선반입(자산 동기화) 후 폐쇄망 현장에서 OS→PKG→Config 설치를 진행한다.
+
+폐쇄망 파이썬 의존성은 오프라인 vendoring: `./scripts/vendor_fetch.sh`(사내망) →
+이관 → `./scripts/vendor_install.sh`(현장). 비밀번호는 대시보드 🔒 시크릿 패널에서
+입력(`group_vars/vcs.yml`, 커밋 안 됨).
 
 ## 개발 방식
 오케스트레이터(메인 Claude)가 작업을 분해해 전문 서브에이전트에 위임한다.
