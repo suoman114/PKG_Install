@@ -180,7 +180,7 @@ PKG_Install/
 2. ~~**M2 엔진**~~ ✅: `orchestrator.py`(ansible 호출/로그 캡처/검증, 스레드), `state.py`(SQLite)
 3. ~~**M3 대시보드**~~ ✅: **Flask** + SSE 로그 + 파이프라인 보드 + 시작/중지/재시도 + Git 자산동기화 + 인벤토리 편집
 4. ~~**M4 보고서**~~ ✅: `report.py`(단계결과·검증·멱등성 집계 → HTML/MD, `/api/report.md|.html`)
-5. **M5 강화**(진행 예정): Vault/오프라인 vendoring/HA 2노드 시나리오/멱등성 회귀
+5. **M5 강화**(진행 중): ~~HA 2노드 분리실행(`--limit`)~~ ✅ · ~~멱등성 2회 회귀(changed=0, 보고서 반영)~~ ✅ · Vault(비밀번호) · 오프라인 vendoring(예정)
 
 ---
 

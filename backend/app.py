@@ -88,13 +88,15 @@ def run():
     scope = body.get("scope", "all")
     step_id = body.get("id")
     target = body.get("target", "all")
+    idempotency = bool(body.get("idempotency"))
     if orchestrator.runner.running or gitassets.syncer.running:
         return jsonify({"error": "다른 작업이 실행 중입니다."}), 409
     step_ids = _resolve_step_ids(scope, step_id)
     if not step_ids:
         return jsonify({"error": "실행할 step이 없습니다."}), 400
-    orchestrator.runner.start(step_ids, scope, "{}".format(target))
-    return jsonify({"started": step_ids, "scope": scope, "target": target})
+    orchestrator.runner.start(step_ids, scope, "{}".format(target), idempotency=idempotency)
+    return jsonify({"started": step_ids, "scope": scope, "target": target,
+                    "idempotency": idempotency})
 
 
 @app.route("/api/stop", methods=["POST"])

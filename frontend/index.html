@@ -102,6 +102,8 @@
 
     <div class="controls">
       <span class="sectit">③ 설치 파이프라인</span>
+      <label title="대상 노드 (--limit)">대상 <select id="target"><option value="all">전체(2노드)</option></select></label>
+      <label title="각 멱등 step을 2회 실행해 changed=0 검증"><input type="checkbox" id="idem_chk"/>멱등성 2회</label>
       <button class="primary" onclick="run('all')">▶ 전체 실행</button>
       <button onclick="run('phase','OS')">OS</button>
       <button onclick="run('phase','PKG')">PKG</button>
@@ -149,7 +151,15 @@ async function loadInventory(){
   document.getElementById('g_ansible_user').value = (INV.group&&INV.group.ansible_user)||'root';
   document.getElementById('g_asset_root').value = (INV.group&&INV.group.asset_root)||'';
   renderNodes();
+  populateTargets();
   setInvHint((INV.nodes||[]).length + '개 노드 로드됨', '');
+}
+function populateTargets(){
+  const sel=document.getElementById('target'); if(!sel) return;
+  const cur=sel.value;
+  sel.innerHTML='<option value="all">전체(2노드)</option>'+
+    (INV.nodes||[]).map(n=>'<option value="'+esc(n.name)+'">'+esc(n.name)+'</option>').join('');
+  if(cur) sel.value=cur;
 }
 function esc(s){ return (s==null?'':String(s)).replace(/"/g,'&quot;'); }
 function renderNodes(){
@@ -209,7 +219,7 @@ async function saveInventory(){
     addLog('⚠ 인벤토리 저장 실패: '+((d.errors&&d.errors.join(' / '))||d.error||''),'warn');
     return;
   }
-  INV=d; renderNodes();
+  INV=d; renderNodes(); populateTargets();
   setInvHint('✓ 저장됨 ('+(d.nodes||[]).length+' 노드) — hosts.ini / host_vars 재생성', 'ok');
   addLog('인벤토리 저장됨 ('+(d.nodes||[]).length+' 노드)','verify');
 }
@@ -269,8 +279,12 @@ function applyStatus(s){
   el.classList.remove('running','success','failed');
   if(s.status&&s.status!=='pending') el.classList.add(s.status);
   const c = document.getElementById('cnt-'+s.step_id);
-  if(c && (s.ok||s.changed||s.failed))
-    c.textContent = 'ok='+(s.ok||0)+' chg='+(s.changed||0)+' fail='+(s.failed||0);
+  if(c){
+    let t='';
+    if(s.ok||s.changed||s.failed) t='ok='+(s.ok||0)+' chg='+(s.changed||0)+' fail='+(s.failed||0);
+    if(s.idem) t+=(t?' ':'')+(s.idem==='ok'?'♻✓':(s.idem==='fail2'?'♻✖':'♻⚠'));
+    if(t) c.textContent=t;
+  }
 }
 
 function connectSSE(){
@@ -281,7 +295,7 @@ function connectSSE(){
   es.onmessage = (e)=>{
     let ev; try{ ev=JSON.parse(e.data); }catch(_){ return; }
     if(ev.type==='log') addLog(ev.line, ev.level, ev.step);
-    else if(ev.type==='status') applyStatus({step_id:ev.step, status:ev.status, ok:ev.ok, changed:ev.changed, failed:ev.failed});
+    else if(ev.type==='status') applyStatus({step_id:ev.step, status:ev.status, ok:ev.ok, changed:ev.changed, failed:ev.failed, idem:ev.idem});
     else if(ev.type==='done'){ addLog('═══ 종료: '+ev.status+' ═══','head'); loadGit(); }
   };
 }
@@ -298,6 +312,8 @@ function clearLog(){ logEl.innerHTML=''; }
 
 async function run(scope, id){
   const body={scope:scope}; if(id) body.id=id;
+  body.target=(document.getElementById('target')||{}).value||'all';
+  body.idempotency=document.getElementById('idem_chk').checked;
   const r=await fetch('/api/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   if(!r.ok){ const e=await r.json(); addLog('⚠ '+(e.error||'실행 실패'),'warn'); }
 }

@@ -33,7 +33,8 @@ def init_db():
                 failed    INTEGER DEFAULT 0,
                 started   REAL,
                 ended     REAL,
-                verify    TEXT
+                verify    TEXT,
+                idem      TEXT
             );
             CREATE TABLE IF NOT EXISTS logs (
                 id      INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -57,6 +58,10 @@ def init_db():
             );
             """
         )
+        # 기존 DB 마이그레이션: 누락 컬럼 보강 (CentOS7 SQLite는 ADD COLUMN 지원)
+        cols = {r["name"] for r in _conn.execute("PRAGMA table_info(step_status)")}
+        if "idem" not in cols:
+            _conn.execute("ALTER TABLE step_status ADD COLUMN idem TEXT")
         _conn.commit()
 
 
@@ -93,7 +98,7 @@ def seed_steps(step_ids):
 def set_status(step_id, status, **fields):
     cols = ["status"]
     vals = [status]
-    for k in ("changed", "ok", "failed", "started", "ended", "verify"):
+    for k in ("changed", "ok", "failed", "started", "ended", "verify", "idem"):
         if k in fields:
             cols.append(k)
             vals.append(fields[k])
@@ -137,7 +142,7 @@ def reset_all(step_ids):
     with _lock:
         _conn.execute("DELETE FROM logs")
         _conn.execute("UPDATE step_status SET status='pending', changed=0, ok=0, "
-                      "failed=0, started=NULL, ended=NULL, verify=NULL")
+                      "failed=0, started=NULL, ended=NULL, verify=NULL, idem=NULL")
         _conn.commit()
     seed_steps(step_ids)
 

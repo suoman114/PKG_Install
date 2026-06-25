@@ -47,6 +47,10 @@ chmod +x run_dev.sh
 | `check` | `DASHBOARD_MODE=check ./run_dev.sh` | `ansible-playbook --check`(dry-run). ansible 설치 필요 |
 | `real` | `DASHBOARD_MODE=real ./run_dev.sh` | 실제 ansible 실행. 인벤토리 노드 SSH 접근 필요 |
 
+**HA 2노드 / 멱등성**: 파이프라인 컨트롤의 `대상` 드롭다운으로 특정 노드만(`--limit`) 실행할 수 있고,
+`멱등성 2회` 체크 시 각 멱등 step을 2회차 실행해 `changed=0`(통과) 여부를 step·보고서에 기록한다.
+비멱등 step(00·08-3·15b·17·18)은 검사 대상에서 제외(N/A)된다.
+
 환경변수: `PORT`(기본 8800), `ANSIBLE_DIR`, `ANSIBLE_INVENTORY`, `ASSET_DEST`, `PYBIN`.
 
 ## 5. WSL 주의점
@@ -69,6 +73,8 @@ chmod +x run_dev.sh
 - [ ] 인벤토리: 노드 필드 편집 → 저장 → hosts.ini/host_vars 재생성 확인
 - [ ] 자산 동기화: Git Clone/Pull → 로그 스트리밍 → "저장소 존재"
 - [ ] `▶ 전체 실행` → step 순차 running→success, 로그 실시간 스트리밍
+- [ ] **대상 노드** 선택(전체/node1/node2) → `--limit` 분리 실행 (HA)
+- [ ] **멱등성 2회** 체크 → 멱등 step 2회차 changed=0 검증(step에 `♻✓`, 보고서 멱등성 열)
 - [ ] `■ 중지` / `↺ 초기화` / `📋 요약` 동작
 - [ ] `📄 보고서 보기`(HTML 새 탭) / `⤓ MD` / `⤓ HTML` 다운로드 — 단계결과·검증·멱등성·실행이력 집계
 

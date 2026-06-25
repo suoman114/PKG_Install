@@ -36,6 +36,7 @@ class Runner(object):
     def __init__(self):
         self._thread = None
         self._cancel = False
+        self._idempotency = False
 
     @property
     def running(self):
@@ -44,10 +45,11 @@ class Runner(object):
     def stop(self):
         self._cancel = True
 
-    def start(self, step_ids, scope, target):
+    def start(self, step_ids, scope, target, idempotency=False):
         if self.running:
             return False
         self._cancel = False
+        self._idempotency = idempotency
         self._thread = threading.Thread(
             target=self._run_sequence, args=(step_ids, scope, target), daemon=True
         )
@@ -57,7 +59,9 @@ class Runner(object):
     def _run_sequence(self, step_ids, scope, target):
         run_id = state.start_run(scope, target, MODE)
         final = "success"
-        emit(None, "▶ 실행 시작 (mode={}, scope={}, target={})".format(MODE, scope, target), "head")
+        idem_note = " +멱등성2회" if self._idempotency else ""
+        emit(None, "▶ 실행 시작 (mode={}, scope={}, target={}{})".format(
+            MODE, scope, target, idem_note), "head")
         try:
             for sid in step_ids:
                 if self._cancel:
@@ -81,35 +85,58 @@ class Runner(object):
         emit_status(sid, "running")
         emit(sid, "── [{}] {} ({}) ──".format(sid, step.name, step.playbook), "head")
 
-        if MODE == "mock":
-            ok, changed, okc, failed = self._run_mock(step)
-        else:
-            ok, changed, okc, failed = self._run_ansible(step, target)
+        ok, changed, okc, failed = self._execute(step, target)
 
         status = "success" if ok else "failed"
         state.set_status(sid, status, changed=changed, ok=okc, failed=failed, ended=time.time())
         emit_status(sid, status, changed=changed, ok=okc, failed=failed)
         emit(sid, "→ {} : ok={} changed={} failed={}".format(status, okc, changed, failed),
              "head" if ok else "error")
+
+        if ok and self._idempotency and step.idempotent and not self._cancel:
+            self._idempotency_check(step, target)
         return ok
 
-    def _run_mock(self, step):
+    def _execute(self, step, target, second_pass=False):
+        if MODE == "mock":
+            return self._run_mock(step, second_pass)
+        return self._run_ansible(step, target)
+
+    def _idempotency_check(self, step, target):
+        """멱등성 회귀: 2회차 실행해 changed=0 여부를 기록한다."""
+        sid = step.id
+        emit(sid, "[멱등성] 2회차 실행 검사...", "verify")
+        ok2, changed2, _okc, _failed = self._execute(step, target, second_pass=True)
+        if not ok2:
+            idem = "fail2"
+            emit(sid, "[멱등성] 2회차 실행 실패", "error")
+        elif changed2 == 0:
+            idem = "ok"
+            emit(sid, "[멱등성] 2회차 changed=0 → 통과", "verify")
+        else:
+            idem = "regress:{}".format(changed2)
+            emit(sid, "[멱등성] 2회차 changed={} → 회귀(비멱등)".format(changed2), "warn")
+        state.set_status(sid, "success", idem=idem)
+        emit_status(sid, "success", idem=idem)
+
+    def _run_mock(self, step, second_pass=False):
+        changed = 0 if second_pass else 1
+        task_line = "ok: [vcs-node1]" if second_pass else "changed: [vcs-node1]"
         lines = [
             "PLAY [vcs] " + "*" * 30,
             "TASK [Gathering Facts] " + "*" * 20,
             "ok: [vcs-node1]",
             "TASK [{}] ".format(step.name) + "*" * 12,
-            "changed: [vcs-node1]",
+            task_line,
         ]
         for ln in lines:
             if self._cancel:
                 break
             emit(step.id, ln)
-            time.sleep(0.25)
-        changed = 0 if step.idempotent else 1
+            time.sleep(0.15 if second_pass else 0.25)
         emit(step.id, "PLAY RECAP " + "*" * 28)
         emit(step.id, "vcs-node1 : ok=3 changed={} unreachable=0 failed=0".format(changed))
-        if step.verify_cmd:
+        if step.verify_cmd and not second_pass:
             emit(step.id, "[verify] $ {}".format(step.verify_cmd), "verify")
             emit(step.id, "[verify] (mock) OK", "verify")
             state.set_status(step.id, "running", verify="mock-ok")

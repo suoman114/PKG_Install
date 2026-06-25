@@ -42,6 +42,22 @@ def _md(v):
     return str(v).replace("|", "\\|").replace("\n", " ")
 
 
+def _idem_label(st):
+    """step의 멱등성 2회 검사 결과 라벨."""
+    if not st["idempotent"]:
+        return "N/A"
+    idem = st.get("idem")
+    if not idem:
+        return "미검사"
+    if idem == "ok":
+        return "✅ changed=0"
+    if idem == "fail2":
+        return "❌ 2회차실패"
+    if idem.startswith("regress:"):
+        return "⚠ 회귀(chg={})".format(idem.split(":", 1)[1])
+    return idem
+
+
 def collect():
     """보고서용 구조화 데이터 집계."""
     statuses = state.get_all_status()
@@ -56,16 +72,17 @@ def collect():
             status = cur.get("status", "pending")
             summary[status] = summary.get(status, 0) + 1
             changed = cur.get("changed", 0) or 0
-            if st.idempotent and status == "success":
+            idem = cur.get("idem")
+            if st.idempotent and idem:
                 idem_checked += 1
-                if changed == 0:
+                if idem == "ok":
                     idem_clean += 1
             rows.append({
                 "id": st.id, "name": st.name, "playbook": st.playbook,
                 "status": status, "changed": changed,
                 "ok": cur.get("ok", 0) or 0, "failed": cur.get("failed", 0) or 0,
                 "verify_cmd": st.verify_cmd, "verify": cur.get("verify"),
-                "idempotent": st.idempotent,
+                "idempotent": st.idempotent, "idem": idem,
                 "required_vars": st.required_vars,
                 "started": cur.get("started"), "ended": cur.get("ended"),
             })
@@ -113,15 +130,15 @@ def to_markdown(data=None):
     for ph in d["phases"]:
         L.append("## {}".format(ph["label"]))
         L.append("")
-        L.append("| 상태 | Step | 단계 | Playbook | ok/chg/fail | 검증 |")
-        L.append("|------|------|------|----------|-------------|------|")
+        L.append("| 상태 | Step | 단계 | Playbook | ok/chg/fail | 멱등성 | 검증 |")
+        L.append("|------|------|------|----------|-------------|--------|------|")
         for st in ph["steps"]:
             icon = _STATUS_ICON.get(st["status"], "")
             verify = "`{}`".format(_md(st["verify_cmd"])) if st["verify_cmd"] else "-"
-            L.append("| {} {} | {} | {} | `{}` | {}/{}/{} | {} |".format(
+            L.append("| {} {} | {} | {} | `{}` | {}/{}/{} | {} | {} |".format(
                 icon, _STATUS_LABEL.get(st["status"], st["status"]),
                 st["id"], _md(st["name"]), _md(st["playbook"]),
-                st["ok"], st["changed"], st["failed"], verify))
+                st["ok"], st["changed"], st["failed"], _idem_label(st), verify))
         L.append("")
 
     L.append("## 실행 이력")
@@ -184,16 +201,18 @@ def to_html(data=None):
     for ph in d["phases"]:
         H.append("<h2>{}</h2>".format(_esc(ph["label"])))
         H.append("<table><tr><th>상태</th><th>Step</th><th>단계</th>"
-                 "<th>Playbook</th><th>ok/chg/fail</th><th>소요</th><th>검증 커맨드</th></tr>")
+                 "<th>Playbook</th><th>ok/chg/fail</th><th>멱등성</th>"
+                 "<th>소요</th><th>검증 커맨드</th></tr>")
         for st in ph["steps"]:
             verify = "<code>{}</code>".format(_esc(st["verify_cmd"])) if st["verify_cmd"] else "-"
             H.append("<tr>"
                      '<td class="s-{0}">{1} {2}</td><td>{3}</td><td>{4}</td>'
-                     "<td><code>{5}</code></td><td>{6}/{7}/{8}</td><td>{9}</td><td>{10}</td></tr>".format(
+                     "<td><code>{5}</code></td><td>{6}/{7}/{8}</td><td>{9}</td>"
+                     "<td>{10}</td><td>{11}</td></tr>".format(
                          st["status"], _STATUS_ICON.get(st["status"], ""),
                          _STATUS_LABEL.get(st["status"], st["status"]),
                          _esc(st["id"]), _esc(st["name"]), _esc(st["playbook"]),
-                         st["ok"], st["changed"], st["failed"],
+                         st["ok"], st["changed"], st["failed"], _esc(_idem_label(st)),
                          _fmt_dur(st["started"], st["ended"]), verify))
         H.append("</table>")
 
