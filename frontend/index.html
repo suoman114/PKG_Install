@@ -30,6 +30,11 @@
   .node input{background:#1a2029;border:1px solid var(--line);border-radius:5px;color:var(--fg);padding:5px 7px;font-size:11.5px;font-family:inherit}
   .xbtn{background:#3a2330;border:1px solid #5a2a3a;color:#ff9bb0;border-radius:5px;cursor:pointer;padding:4px 8px}
   .sectit{font-size:11px;color:#7fc4ff;font-weight:600;margin-right:4px;align-self:center}
+  .tabs{display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid var(--line)}
+  .tab{background:none;border:none;color:var(--muted);padding:9px 18px;cursor:pointer;font-size:14px;font-family:inherit;border-bottom:2px solid transparent;margin-bottom:-1px}
+  .tab:hover{color:var(--fg)}
+  .tab.active{color:var(--fg);border-bottom-color:#2b6cb0;font-weight:600}
+  .tabnote{font-size:11px;color:var(--muted);margin-bottom:12px}
   .controls{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;align-items:center}
   button{background:#222b36;color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:6px 10px;cursor:pointer;font-size:12px}
   button:hover{border-color:#3d4b5c}
@@ -70,6 +75,13 @@
 </header>
 <div class="wrap">
   <div class="left">
+    <div class="tabs">
+      <button id="tabbtn-install" class="tab active" onclick="showTab('install')">▶ 설치</button>
+      <button id="tabbtn-config" class="tab" onclick="showTab('config')">⚙ 설정</button>
+    </div>
+
+    <div id="tab-config" style="display:none">
+    <div class="tabnote">설치 전 1회 준비: 인벤토리 → 시크릿 → 자산 동기화. (필요 시 파일 직접 편집)</div>
     <details class="gitbox" id="invbox">
       <summary class="gittitle">① 인벤토리 (노드 / 2-노드 HA 설정)</summary>
       <div class="gitrow" style="margin-top:8px">
@@ -122,9 +134,10 @@
       </div>
       <div class="githint" id="githint">—</div>
     </div>
+    </div><!-- /tab-config -->
 
+    <div id="tab-install">
     <div class="controls">
-      <span class="sectit">③ 설치 파이프라인</span>
       <label title="대상 노드 (--limit)">대상 <select id="target"><option value="all">전체(2노드)</option></select></label>
       <label title="각 멱등 step을 2회 실행해 changed=0 검증"><input type="checkbox" id="idem_chk"/>멱등성 2회</label>
       <button class="primary" onclick="run('all')">▶ 전체 실행</button>
@@ -133,12 +146,9 @@
       <button onclick="run('phase','CFG')">CFG</button>
       <button class="danger" onclick="stop()">■ 중지</button>
       <button onclick="reset()">↺ 초기화</button>
-      <button onclick="loadReport()">📋 요약</button>
-      <button onclick="window.open('/api/report.html','_blank')">📄 보고서 보기</button>
-      <button onclick="location.href='/api/report.md'">⤓ MD</button>
-      <button onclick="location.href='/api/report.html?download=1'">⤓ HTML</button>
     </div>
     <div id="board"></div>
+    </div><!-- /tab-install -->
   </div>
   <div class="right">
     <div class="logwrap">
@@ -146,6 +156,10 @@
         <strong>설치 진행 로그</strong>
         <label><input type="checkbox" id="autoscroll" checked/> 자동 스크롤</label>
         <button class="runbtn" onclick="clearLog()">지우기</button>
+        <span style="flex:1"></span>
+        <button class="runbtn" onclick="loadReport()">📋 요약</button>
+        <button class="runbtn" onclick="window.open('/api/report.html','_blank')">📄 보고서</button>
+        <button class="runbtn" onclick="location.href='/api/report.md'">⤓MD</button>
         <span id="report"></span>
       </div>
       <div id="log"></div>
@@ -156,6 +170,13 @@
 <script>
 let STEPS = [], PHASES = [];
 const logEl = document.getElementById('log');
+
+function showTab(name){
+  document.getElementById('tab-install').style.display = name==='install' ? '' : 'none';
+  document.getElementById('tab-config').style.display  = name==='config'  ? '' : 'none';
+  document.getElementById('tabbtn-install').classList.toggle('active', name==='install');
+  document.getElementById('tabbtn-config').classList.toggle('active', name==='config');
+}
 
 async function boot(){
   const p = await (await fetch('/api/pipeline')).json();
