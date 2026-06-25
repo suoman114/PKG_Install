@@ -46,7 +46,8 @@ class NodeChecker(object):
     def _run(self, target):
         self.last_status = "running"
         emit_status(PING_STEP, "running")
-        emit(PING_STEP, "▶ 노드 연결 확인 (target={}, mode={})".format(target, MODE), "head")
+        emit(PING_STEP, "▶ 노드 연결 확인 (target={})".format(target), "head")
+        emit(PING_STEP, "TCP {} 포트 도달성을 실제로 확인합니다 (mock 모드와 무관 · SSH 인증은 2차).".format(SSH_PORT), "verify")
         nodes = self._targets(target)
         ok_all = True
         if not nodes:
@@ -59,9 +60,7 @@ class NodeChecker(object):
                 emit(PING_STEP, "✗ {} : ansible_host 미설정".format(name), "error")
                 ok_all = False
                 continue
-            if MODE == "mock":
-                emit(PING_STEP, "✓ {} ({}:{}) 연결 가능 (mock)".format(name, host, SSH_PORT), "verify")
-                continue
+            # TCP 도달성은 모드와 무관하게 항상 실제로 확인한다.
             reachable, detail = self._tcp(host, SSH_PORT)
             if reachable:
                 emit(PING_STEP, "✓ {} ({}:{}) TCP 연결 가능".format(name, host, SSH_PORT), "verify")
@@ -69,9 +68,11 @@ class NodeChecker(object):
                 emit(PING_STEP, "✗ {} ({}:{}) 연결 불가: {}".format(name, host, SSH_PORT, detail), "error")
                 ok_all = False
 
-        # 2차: ansible ping (SSH 인증 + 원격 파이썬). real/check 에서만.
+        # 2차: ansible ping (SSH 인증 + 원격 파이썬). real/check 에서만(ansible 필요).
         if MODE != "mock" and nodes:
             ok_all = self._ansible_ping(target) and ok_all
+        elif nodes:
+            emit(PING_STEP, "참고: SSH 인증·원격 파이썬 확인은 real/check 모드에서 'ansible -m ping'으로 수행됩니다.", "verify")
 
         self.last_status = "success" if ok_all else "failed"
         emit(PING_STEP, "● 연결 확인 종료: {}".format(self.last_status),

@@ -62,6 +62,9 @@ class Runner(object):
         idem_note = " +멱등성2회" if self._idempotency else ""
         emit(None, "▶ 실행 시작 (mode={}, scope={}, target={}{})".format(
             MODE, scope, target, idem_note), "head")
+        if MODE == "mock":
+            emit(None, "※ mock = 시뮬레이션. 실제 SSH 접속·설치·검증을 하지 않으며 항상 성공으로 표시됩니다. "
+                       "실제 실행은 DASHBOARD_MODE=real(또는 check). 연결은 🔌 연결 확인으로 점검하세요.", "warn")
         try:
             for sid in step_ids:
                 if self._cancel:
@@ -153,7 +156,7 @@ class Runner(object):
             emit(step.id, "{} : ok=3 changed={} unreachable=0 failed=0".format(h, changed))
         if step.verify_cmd and not second_pass:
             emit(step.id, "[verify] $ {}".format(step.verify_cmd), "verify")
-            emit(step.id, "[verify] (mock) OK", "verify")
+            emit(step.id, "[verify] (mock) 시뮬레이션 — 실제 검증 아님", "verify")
             state.set_status(step.id, "running", verify="mock-ok")
         return True, changed, 3, 0
 
