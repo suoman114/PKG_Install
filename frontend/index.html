@@ -77,7 +77,11 @@
         <input id="g_asset_root" placeholder="asset_root (예: /root/lter_vcs_gimhae)"/>
         <button onclick="useAssetDest()" title="자산 동기화(②) 경로로 맞춤">⟸ 동기화경로</button>
       </div>
-      <div class="githint">asset_root = 플레이북이 자산을 읽는 경로. 자산 동기화(②) asset_dest 와 일치시키세요.</div>
+      <div class="gitrow">
+        <input id="g_ntp_ip1" placeholder="ntp_ip1 (폐쇄망 NTP, 선택)" style="max-width:200px"/>
+        <input id="g_ntp_ip2" placeholder="ntp_ip2 (선택)" style="max-width:200px"/>
+      </div>
+      <div class="githint">asset_root = 플레이북이 자산을 읽는 경로(자산 동기화 asset_dest와 일치). NTP는 폐쇄망 시각서버(04) — 비우면 timezone만 적용.</div>
       <div id="nodes"></div>
       <div class="gitrow">
         <button onclick="addNode()">+ 노드</button>
@@ -185,8 +189,11 @@ async function saveSecrets(){
 let INV = {group:{}, nodes:[]};
 async function loadInventory(){
   INV = await (await fetch('/api/inventory')).json();
-  document.getElementById('g_ansible_user').value = (INV.group&&INV.group.ansible_user)||'root';
-  document.getElementById('g_asset_root').value = (INV.group&&INV.group.asset_root)||'';
+  const g=INV.group||{};
+  document.getElementById('g_ansible_user').value = g.ansible_user||'root';
+  document.getElementById('g_asset_root').value = g.asset_root||'';
+  document.getElementById('g_ntp_ip1').value = g.ntp_ip1||'';
+  document.getElementById('g_ntp_ip2').value = g.ntp_ip2||'';
   renderNodes();
   populateTargets();
   setInvHint((INV.nodes||[]).length + '개 노드 로드됨', '');
@@ -248,7 +255,8 @@ function setInvHint(msg, cls){
   el.innerHTML = cls ? '<span class="'+cls+'">'+msg+'</span>' : msg;
 }
 async function saveInventory(){
-  INV.group = {ansible_user: val('g_ansible_user')||'root', asset_root: val('g_asset_root')};
+  INV.group = {ansible_user: val('g_ansible_user')||'root', asset_root: val('g_asset_root'),
+               ntp_ip1: val('g_ntp_ip1'), ntp_ip2: val('g_ntp_ip2')};
   const r=await fetch('/api/inventory',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(INV)});
   const d=await r.json();
   if(!r.ok){

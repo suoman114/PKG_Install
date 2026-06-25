@@ -35,8 +35,12 @@ def _strip_comment(val):
     return val.split("#", 1)[0].strip()
 
 
+GROUP_OPTIONAL = ("ntp_ip1", "ntp_ip2")  # 비어있으면 hosts.ini 에 미기록
+
+
 def read_inventory():
-    group = {"ansible_user": "root", "asset_root": "/root/lter_vcs_gimhae"}
+    group = {"ansible_user": "root", "asset_root": "/root/lter_vcs_gimhae",
+             "ntp_ip1": "", "ntp_ip2": ""}
     hosts = []  # [(name, ansible_host)]
     if os.path.isfile(HOSTS):
         section = None
@@ -153,7 +157,12 @@ def write_inventory(model):
     for n in nodes:
         lines.append("{} ansible_host={}".format(n["name"].strip(), n["ansible_host"].strip()))
     lines += ["", "[vcs:vars]", "ansible_user={}".format(ansible_user),
-              "asset_root={}".format(asset_root), ""]
+              "asset_root={}".format(asset_root)]
+    for k in GROUP_OPTIONAL:
+        v = (group.get(k) or "").strip()
+        if v:
+            lines.append("{}={}".format(k, v))
+    lines.append("")
     with open(HOSTS, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
 
@@ -177,9 +186,7 @@ def write_inventory(model):
         for nic in nics:
             body.append("  - {}".format(nic))
         body += [
-            "# 폐쇄망 NTP (04 활성화 시)",
-            "# ntp_ip1: 10.0.0.1",
-            "# ntp_ip2: 10.0.0.2",
+            "# 폐쇄망 NTP(04)는 그룹변수 ntp_ip1/ntp_ip2 로 설정(hosts.ini [vcs:vars] / 대시보드 인벤토리)",
             "",
         ]
         with open(os.path.join(HV_DIR, name + ".yml"), "w", encoding="utf-8") as f:

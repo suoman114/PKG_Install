@@ -23,6 +23,8 @@ SECRET_KEYS = [
     ("mariadb_vcsm_password", "MariaDB vcsm (8-1)"),
     ("replication_password", "복제 (8-3)"),
     ("rmq_vcm_password", "RabbitMQ vcm (6)"),
+    ("vcs_os_password", "OS 계정 vcs (9-1)"),
+    ("vcweb_os_password", "OS 계정 vcweb (10-1)"),
 ]
 _KEYSET = {k for k, _ in SECRET_KEYS}
 _SCALAR_RE = re.compile(r'^([A-Za-z_][\w]*):\s*(.+?)\s*$')

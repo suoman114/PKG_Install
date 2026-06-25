@@ -14,3 +14,6 @@ mariadb_root_password: "root.123"     # 8-1: MariaDB root
 mariadb_vcsm_password: "vcsm.123"     # 8-1: VCSM DB 계정
 replication_password: "repl.123"      # 8-3: Master-Master 복제 계정
 rmq_vcm_password: "vcm.123"           # 6:   RabbitMQ vcm 계정
+vcs_os_password: "vcs.123"            # 9-1:  OS 계정 vcs
+vcweb_os_password: "vcweb.123"        # 10-1: OS 계정 vcweb
+# account_salt: "lterVcsSalt"         # (선택) OS 계정 해시 salt — 멱등성 위해 고정. 미설정 시 기본값.
