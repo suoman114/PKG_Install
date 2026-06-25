@@ -72,7 +72,13 @@ chmod +x run_dev.sh
 - 검증: 노드명 형식/중복, `ansible_host` 필수, `server_id` 정수. 실패 시 사유 표시.
 
 > 저장은 표준 템플릿으로 재생성하므로 주석/NTP 플레이스홀더는 유지되지만, 폼 외 커스텀 변수를
-> 직접 넣었다면 `host_vars/*.yml`을 직접 편집하세요(폼 범위 밖 필드는 재생성 시 제외됨).
+> 직접 넣었다면 아래 **📝 파일 편집** 패널로 `host_vars/*.yml`을 직접 편집하세요(폼 범위 밖 필드는 폼 저장 시 제외됨).
+
+### 파일 편집 (YAML/INI — 고급)
+**📝 파일 편집** 패널에서 `ansible/` 하위 파일을 직접 편집한다.
+- 대상: `playbooks/*.yml`, `inventory/hosts.ini`, `inventory/host_vars/*.yml`, `ansible.cfg`
+- 안전장치: ansible 디렉토리 밖 경로·허용외 확장자 차단, **시크릿 `group_vars/vcs.yml` 제외**(🔒 패널 전용), 저장 시 **YAML 문법 검사**(오류 시 거부, 파일 보존)
+- 주의: hosts.ini/host_vars를 직접 고친 뒤 ① 인벤토리 폼으로 저장하면 폼 값으로 덮어쓰여질 수 있음.
 
 ### 시크릿(비밀번호)
 좌측 **🔒 시크릿** 패널에서 비밀번호 5종(SSH, MariaDB root/vcsm, 복제, RabbitMQ vcm)을 입력·저장한다.
@@ -99,6 +105,7 @@ backend/orchestrator.py 실행 엔진(mock/check/real, 스레드 기반)
 backend/gitassets.py    Git clone/pull 자산 동기화
 backend/inventory.py    인벤토리 구조화 읽기/쓰기(PyYAML 무의존)
 backend/secrets.py      시크릿(비밀번호) → group_vars/vcs.yml(0600, gitignore)
+backend/files.py        YAML/INI 파일 직접 편집(경로가드·확장자제한·시크릿제외·YAML검사)
 backend/events.py       공용 이벤트 버스(SSE 브로드캐스트)
 backend/report.py       결과 보고서 엔진(Markdown/HTML, 멱등성·검증 집계)
 backend/pipeline.py     24개 step 정의(단일 진실)

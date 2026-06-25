@@ -106,6 +106,20 @@ def main():
     g = c.get("/api/git").get_json()
     check("git config persisted", g["git_url"] == "file:///x/repo.git" and g["git_branch"] == "main")
 
+    print("[7] file editor (list/read/write/guards)")
+    fpaths = [f["path"] for f in c.get("/api/files").get_json()["files"]]
+    check("playbooks listed, secret excluded",
+          "playbooks/3_sysctl.yml" in fpaths and "inventory/group_vars/vcs.yml" not in fpaths)
+    hv = "inventory/host_vars/vcs-node1.yml"
+    cont = c.get("/api/files/content?path=" + hv).get_json()["content"]
+    w = c.post("/api/files/content", json={"path": hv, "content": cont + "\ncustom_flag: true\n"})
+    check("valid edit saved", w.status_code == 200, str(w.status_code))
+    bad = c.post("/api/files/content", json={"path": "playbooks/3_sysctl.yml", "content": "x: [oops\n"})
+    check("invalid YAML rejected", bad.status_code == 400, str(bad.status_code))
+    g1 = c.get("/api/files/content?path=inventory/group_vars/vcs.yml").status_code
+    g2 = c.get("/api/files/content?path=../../etc/passwd").status_code
+    check("secret + traversal guarded", g1 == 400 and g2 == 400, "%s/%s" % (g1, g2))
+
     shutil.rmtree(tmp, ignore_errors=True)
 
     print("\n결과: %d passed, %d failed" % (len(_PASS), len(_FAIL)))
