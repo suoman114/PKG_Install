@@ -24,7 +24,8 @@ import queue
 
 from flask import Flask, Response, jsonify, request, send_from_directory
 
-from . import files, gitassets, inventory, orchestrator, pipeline, report, secrets, state
+from . import (files, gitassets, inventory, nodecheck, orchestrator, pipeline,
+               report, secrets, state)
 from .events import bus
 
 BASE = os.path.dirname(os.path.dirname(__file__))
@@ -97,6 +98,17 @@ def run():
     orchestrator.runner.start(step_ids, scope, "{}".format(target), idempotency=idempotency)
     return jsonify({"started": step_ids, "scope": scope, "target": target,
                     "idempotency": idempotency})
+
+
+@app.route("/api/nodes/check", methods=["POST"])
+def nodes_check():
+    if orchestrator.runner.running:
+        return jsonify({"error": "파이프라인 실행 중에는 연결 확인을 할 수 없습니다."}), 409
+    body = request.get_json(force=True, silent=True) or {}
+    ok, msg = nodecheck.checker.start(body.get("target", "all"))
+    if not ok:
+        return jsonify({"error": msg}), 409
+    return jsonify({"checking": True, "message": msg})
 
 
 @app.route("/api/stop", methods=["POST"])
@@ -178,6 +190,8 @@ def git_config():
         git_url=body.get("git_url"),
         git_branch=body.get("git_branch"),
         asset_dest=body.get("asset_dest"),
+        git_user=body.get("git_user"),
+        git_token=body.get("git_token"),
     )
     return jsonify(cfg)
 

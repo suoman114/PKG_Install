@@ -128,6 +128,10 @@
         <input id="git_branch" placeholder="branch" style="max-width:110px"/>
       </div>
       <div class="gitrow">
+        <input id="git_user" placeholder="사용자 (사설 저장소, 선택)" style="max-width:200px"/>
+        <input id="git_token" type="password" autocomplete="new-password" placeholder="비밀번호/토큰 (변경 시 입력)"/>
+      </div>
+      <div class="gitrow">
         <input id="asset_dest" placeholder="asset_dest 경로"/>
         <button onclick="saveGit()">저장</button>
         <button class="primary" onclick="syncGit()">⤓ Clone/Pull</button>
@@ -140,6 +144,7 @@
     <div class="controls">
       <label title="대상 노드 (--limit)">대상 <select id="target"><option value="all">전체(2노드)</option></select></label>
       <label title="각 멱등 step을 2회 실행해 changed=0 검증"><input type="checkbox" id="idem_chk"/>멱등성 2회</label>
+      <button onclick="checkNodes()" title="대상 노드 SSH(22) 도달성 확인">🔌 연결 확인</button>
       <button class="primary" onclick="run('all')">▶ 전체 실행</button>
       <button onclick="run('phase','OS')">OS</button>
       <button onclick="run('phase','PKG')">PKG</button>
@@ -359,14 +364,26 @@ async function loadGit(){
   document.getElementById('git_url').value = g.git_url||'';
   document.getElementById('git_branch').value = g.git_branch||'main';
   document.getElementById('asset_dest').value = g.asset_dest||'';
+  document.getElementById('git_user').value = g.git_user||'';
+  document.getElementById('git_token').placeholder = g.git_auth?'●●●●● (인증 설정됨 · 변경 시 입력, 지우려면 -)':'비밀번호/토큰 (사설 저장소)';
   const hint = document.getElementById('githint');
   hint.innerHTML = (g.exists?'<span class="ok">● 저장소 존재</span>':'○ 미수신')
-    + ' · 상태: ' + (g.status||'idle') + (g.running?' (동기화 중...)':'');
+    + ' · 상태: ' + (g.status||'idle') + (g.git_auth?' · 인증✓':'') + (g.running?' (동기화 중...)':'');
 }
 async function saveGit(){
-  const body={git_url:val('git_url'),git_branch:val('git_branch')||'main',asset_dest:val('asset_dest')};
+  const body={git_url:val('git_url'),git_branch:val('git_branch')||'main',asset_dest:val('asset_dest'),
+              git_user:val('git_user')};
+  const tok=document.getElementById('git_token').value;
+  if(tok) body.git_token=tok;
   await fetch('/api/git/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  document.getElementById('git_token').value='';
   addLog('git 설정 저장됨','verify'); await loadGit();
+}
+async function checkNodes(){
+  const target=(document.getElementById('target')||{}).value||'all';
+  const r=await fetch('/api/nodes/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target:target})});
+  if(!r.ok){ const e=await r.json(); addLog('⚠ '+(e.error||'연결 확인 실패'),'warn'); }
+  else addLog('노드 연결 확인 시작 (대상: '+target+')...','head');
 }
 async function syncGit(){
   await saveGit();
