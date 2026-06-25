@@ -1,8 +1,8 @@
 - hosts: vcs
   remote_user: root
   vars:
-#### recommand reference api rpm
-   - vcapi_rpm_name : vcapi-0.0.1-4.noarch.rpm
+    #### recommend reference api rpm
+    vcapi_rpm_name: vcapi-0.0.1-4.noarch.rpm
 
   tasks:
    - name: vcs bash shell copy
