@@ -25,9 +25,19 @@ ANSIBLE_DIR = os.environ.get(
 INVENTORY = os.environ.get(
     "ANSIBLE_INVENTORY", os.path.join(ANSIBLE_DIR, "inventory", "hosts.ini")
 )
+ANSIBLE_CFG = os.path.join(ANSIBLE_DIR, "ansible.cfg")
 MODE = os.environ.get("DASHBOARD_MODE", "mock").lower()
 
 _RECAP_RE = re.compile(r"ok=(\d+).*?changed=(\d+).*?(?:unreachable=\d+\s+)?failed=(\d+)")
+
+
+def ansible_env():
+    """ansible 서브프로세스용 환경 — ansible.cfg 를 명시 지정해 항상 로드되게 한다.
+    (cwd 기반 자동탐지는 world-writable 디렉토리 등에서 무시될 수 있음)."""
+    env = dict(os.environ)
+    if os.path.isfile(ANSIBLE_CFG):
+        env["ANSIBLE_CONFIG"] = ANSIBLE_CFG
+    return env
 
 
 class Runner(object):
@@ -170,7 +180,7 @@ class Runner(object):
         emit(step.id, "$ " + " ".join(cmd), "verify")
         try:
             proc = subprocess.Popen(
-                cmd, cwd=ANSIBLE_DIR, stdout=subprocess.PIPE,
+                cmd, cwd=ANSIBLE_DIR, env=ansible_env(), stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True,
             )
         except FileNotFoundError:

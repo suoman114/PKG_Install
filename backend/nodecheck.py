@@ -14,7 +14,7 @@ import threading
 
 from . import inventory
 from .events import emit, emit_status, emit_done
-from .orchestrator import ANSIBLE_DIR, INVENTORY, MODE
+from .orchestrator import ANSIBLE_DIR, INVENTORY, MODE, ansible_env
 
 PING_STEP = "ping"
 SSH_PORT = 22
@@ -94,7 +94,7 @@ class NodeChecker(object):
         emit(PING_STEP, "$ " + " ".join(cmd), "verify")
         try:
             proc = subprocess.Popen(
-                cmd, cwd=ANSIBLE_DIR, stdout=subprocess.PIPE,
+                cmd, cwd=ANSIBLE_DIR, env=ansible_env(), stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True,
             )
         except FileNotFoundError:
