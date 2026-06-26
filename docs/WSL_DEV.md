@@ -82,7 +82,7 @@ chmod +x run_dev.sh
 
 ## 6. 인벤토리 편집 (노드 / 2-노드 HA)
 대시보드 좌측 **① 인벤토리** 패널(접기/펼치기):
-- 그룹 변수: `ansible_user`, `asset_root` (플레이북 `src:`가 자산을 읽는 경로 — **자산 동기화(②)의 `asset_dest`와 일치**시킬 것. `⟸ 동기화경로` 버튼으로 자동 입력), `ntp_ip1`/`ntp_ip2` (폐쇄망 NTP — 비우면 04는 timezone만 적용)
+- 그룹 변수: `ansible_user`, `asset_root` (플레이북 `src:`가 자산을 읽는 경로 — **자산 동기화(②)의 `asset_dest`와 일치**시킬 것. `⟸ 동기화경로` 버튼으로 자동 입력), `ntp_ip1`/`ntp_ip2` (폐쇄망 NTP — 비우면 04는 timezone만 적용), `ansible_python_interpreter` (비우면 ansible.cfg 기본값 `/usr/bin/python3`. 노드 파이썬 경로가 다르면 입력해 덮어쓰기)
 - **등록된 노드 (N대)**: 등록된 노드를 카드 리스트로 관리(편집·삭제). 필드: `노드명`, `ansible_host`, `server_id`(HA), `peer_ip`(복제 상대), `app_user`, `ramdisk_size`, `광 NIC`(쉼표 구분)
 - **노드 추가**: 전용 입력폼(`노드명` + `ansible_host`) → **+ 추가** (server_id 자동, 중복·형식 검증). 추가 후 리스트에서 세부 편집
 - 변경은 화면에 staged → **💾 인벤토리 저장** 시 `hosts.ini` + `host_vars/<node>.yml` **재생성**
