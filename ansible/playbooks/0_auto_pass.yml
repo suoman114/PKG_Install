@@ -22,9 +22,10 @@
   vars:
    ansible_password: "{{ ssh_password }}"
   tasks:
-   - name: ssh-keygen for authorized_keys file
-     command: "ssh-keygen -b 2048 -t rsa -f ~/.ssh/id_rsa -q -N ''"
-     ignore_errors: yes
+   - name: ssh-keygen for authorized_keys file (없을 때만 생성 → 재실행 안전)
+     command: "ssh-keygen -b 2048 -t rsa -f {{ '~/.ssh/id_rsa' | expanduser }} -q -N ''"
+     args:
+       creates: "{{ '~/.ssh/id_rsa' | expanduser }}"
      run_once: true
    - name: input key for each node
      connection: ssh
