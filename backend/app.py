@@ -24,9 +24,9 @@ import queue
 
 from flask import Flask, Response, jsonify, request, send_from_directory
 
-from . import (files, gitassets, inventory, nodecheck, orchestrator, pipeline,
-               report, secrets, state)
-from .events import bus
+from . import (assetcheck, files, gitassets, inventory, nodecheck, orchestrator,
+               pipeline, report, secrets, state)
+from .events import bus, emit
 
 BASE = os.path.dirname(os.path.dirname(__file__))
 FRONTEND = os.path.join(BASE, "frontend")
@@ -90,8 +90,8 @@ def run():
     step_id = body.get("id")
     target = body.get("target", "all")
     idempotency = bool(body.get("idempotency"))
-    if orchestrator.runner.running or gitassets.syncer.running:
-        return jsonify({"error": "다른 작업이 실행 중입니다."}), 409
+    if orchestrator.runner.running:
+        return jsonify({"error": "이미 파이프라인이 실행 중입니다."}), 409
     step_ids = _resolve_step_ids(scope, step_id)
     if not step_ids:
         return jsonify({"error": "실행할 step이 없습니다."}), 400
@@ -117,9 +117,28 @@ def run():
                         "missing_secrets": missing,
                     }), 400
 
+        # 사전 점검: 필요한 자산(RPM/파일)이 asset_root 에 있는지 확인
+        ac = assetcheck.check(step_ids)
+        if not ac["root_exists"]:
+            return jsonify({"error": "자산 경로(asset_root)가 없습니다: {} — ⚙ 설정 → 인벤토리 asset_root 확인/자산 동기화.".format(
+                ac["asset_root"]), "missing_assets": ac["missing"]}), 400
+        if ac["missing"]:
+            return jsonify({
+                "error": "자산 누락({}): {} — 자산 동기화 또는 디렉토리에 파일을 두세요.".format(
+                    ac["asset_root"], ", ".join(ac["missing"])),
+                "missing_assets": ac["missing"],
+            }), 400
+
+    if gitassets.syncer.running:
+        emit(None, "⚠ 자산 동기화가 진행 중입니다 — 자산이 아직 불완전할 수 있으니 주의하세요.", "warn")
     orchestrator.runner.start(step_ids, scope, "{}".format(target), idempotency=idempotency)
     return jsonify({"started": step_ids, "scope": scope, "target": target,
                     "idempotency": idempotency})
+
+
+@app.route("/api/assets/check")
+def assets_check():
+    return jsonify(assetcheck.check())
 
 
 @app.route("/api/nodes/check", methods=["POST"])

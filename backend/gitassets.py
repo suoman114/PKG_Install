@@ -13,6 +13,7 @@ gitassets.py — Git 자산 동기화 (사내망에서 RPM/파일 선반입)
 import base64
 import os
 import shutil
+import signal
 import subprocess
 import threading
 import time
@@ -90,11 +91,19 @@ class Syncer(object):
         self._cancel = True
         p = self._proc
         if p is not None and p.poll() is None:
+            # git clone 은 자식(git-remote-*, index-pack)을 띄우므로 프로세스 그룹 전체 종료
+            self._kill_group(p, signal.SIGTERM)
+        return True, "중지 요청됨"
+
+    @staticmethod
+    def _kill_group(proc, sig):
+        try:
+            os.killpg(os.getpgid(proc.pid), sig)
+        except Exception:  # noqa: BLE001 — 그룹 없으면 단일 종료로 폴백
             try:
-                p.terminate()
+                proc.send_signal(sig)
             except Exception:  # noqa: BLE001
                 pass
-        return True, "중지 요청됨"
 
     def _sync(self, cfg):
         url, branch, dest = cfg["git_url"], cfg["git_branch"], cfg["asset_dest"]
@@ -152,21 +161,20 @@ class Syncer(object):
 
     def _stream(self, cmd, redact=None):
         emit(GIT_STEP, "$ " + self._redact(" ".join(cmd), redact), "verify")
+        # 새 세션(프로세스 그룹)으로 띄워 중지 시 자식까지 한 번에 종료 가능하게
+        popen_kw = dict(stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                        bufsize=1, universal_newlines=True)
+        if hasattr(os, "setsid"):
+            popen_kw["preexec_fn"] = os.setsid
         try:
-            proc = subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                bufsize=1, universal_newlines=True,
-            )
+            proc = subprocess.Popen(cmd, **popen_kw)
         except FileNotFoundError:
             emit(GIT_STEP, "git 미설치 — 'yum install -y git' 후 재시도하세요.", "error")
             return False
         self._proc = proc
         for line in iter(proc.stdout.readline, ""):
             if self._cancel:
-                try:
-                    proc.terminate()
-                except Exception:  # noqa: BLE001
-                    pass
+                self._kill_group(proc, signal.SIGKILL)  # 즉시 확실히 종료
                 break
             emit(GIT_STEP, self._redact(line.rstrip("\n"), redact))
         proc.stdout.close()

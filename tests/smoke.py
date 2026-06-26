@@ -130,6 +130,12 @@ def main():
     check("node check really probes (✓/✗ per node)",
           any(("TCP 연결 가능" in x or "연결 불가" in x) for x in plog), str(plog[-2:]))
 
+    print("[7c] asset check endpoint")
+    avd = c.get("/api/assets/check").get_json()
+    check("asset check returns items+missing",
+          "asset_root" in avd and isinstance(avd.get("items"), list) and "missing" in avd,
+          str(list(avd.keys())))
+
     print("[7] file editor (list/read/write/guards)")
     fpaths = [f["path"] for f in c.get("/api/files").get_json()["files"]]
     check("playbooks listed, secret excluded",
