@@ -10,13 +10,18 @@ gitassets.py — Git 자산 동기화 (사내망에서 RPM/파일 선반입)
   git_branch : 브랜치 (기본 main)
   asset_dest : clone 대상 경로 (기본 <repo>/assets) → 플레이북 asset_root 와 매핑
 """
-import base64
 import os
 import shutil
 import signal
 import subprocess
 import threading
 import time
+
+try:  # py3
+    from urllib.parse import quote, urlsplit, urlunsplit
+except ImportError:  # pragma: no cover
+    from urllib import quote
+    from urlparse import urlsplit, urlunsplit
 
 from . import state
 from .events import bus, emit, emit_status, emit_done
@@ -53,14 +58,20 @@ def set_config(git_url=None, git_branch=None, asset_dest=None,
     return get_config()
 
 
-def _auth_args(user, token):
-    """http(s) 사설 저장소용 Basic 인증 헤더. .git/config 에 저장되지 않음."""
-    if not token:
-        return [], None
-    cred = base64.b64encode(
-        "{}:{}".format(user or "x-access-token", token).encode("utf-8")
-    ).decode("ascii")
-    return ["-c", "http.extraHeader=Authorization: Basic {}".format(cred)], cred
+def _authed_url(url, user, token):
+    """http(s) URL 에 user:token 자격증명을 삽입. (authed_url, clean_url) 반환.
+    non-http(예: SSH git@…)나 토큰 없음이면 원본 그대로."""
+    if not token or not url.lower().startswith(("http://", "https://")):
+        return url, url
+    parts = urlsplit(url)
+    host = parts.hostname or ""
+    if parts.port:
+        host = "{}:{}".format(host, parts.port)
+    userinfo = "{}:{}".format(quote(user or "x-token-auth", safe=""),
+                              quote(token, safe=""))
+    authed = urlunsplit((parts.scheme, userinfo + "@" + host,
+                         parts.path, parts.query, parts.fragment))
+    return authed, url
 
 
 class Syncer(object):
@@ -109,9 +120,11 @@ class Syncer(object):
         url, branch, dest = cfg["git_url"], cfg["git_branch"], cfg["asset_dest"]
         user = state.get_setting("git_user", "")
         token = state.get_setting("git_token", "")
-        auth, cred = _auth_args(user, token)
+        authed_url, clean_url = _authed_url(url, user, token)
+        # 로그/에러에서 자격증명 가리기: authed_url→clean_url, 토큰→***
+        red = [(authed_url, clean_url), (token, "***")] if token else []
         if token:
-            emit(GIT_STEP, "인증 사용: user={} token=***".format(user or "(x-access-token)"), "verify")
+            emit(GIT_STEP, "인증 사용: user={} token=***".format(user or "(x-token-auth)"), "verify")
         self.last_status = "running"
         emit_status(GIT_STEP, "running")
         started = time.time()
@@ -120,15 +133,19 @@ class Syncer(object):
             fresh = not os.path.isdir(git_dir)
             if not fresh:
                 emit(GIT_STEP, "기존 저장소 감지 → pull: {}".format(dest), "head")
-                cmd = ["git"] + auth + ["-C", dest, "pull", "--ff-only", "origin", branch]
+                # 저장된 remote 에 의존하지 않고 authed_url 직접 사용(자격증명 디스크 미저장)
+                cmd = ["git", "-C", dest, "pull", "--ff-only", authed_url, branch]
             else:
                 parent = os.path.dirname(dest) or "."
                 if not os.path.isdir(parent):
                     os.makedirs(parent, exist_ok=True)
                 emit(GIT_STEP, "신규 clone: {} (branch={}) → {}".format(url, branch, dest), "head")
-                cmd = ["git"] + auth + ["clone", "--branch", branch, "--depth", "1", url, dest]
+                cmd = ["git", "clone", "--branch", branch, "--depth", "1", authed_url, dest]
 
-            ok = self._stream(cmd, redact=cred)
+            ok = self._stream(cmd, red)
+            if ok and fresh and token:
+                # clone 시 origin 에 박힌 자격증명을 제거(.git/config 평문 토큰 방지)
+                subprocess.call(["git", "-C", dest, "remote", "set-url", "origin", clean_url])
             if self._cancel:
                 emit(GIT_STEP, "■ 사용자 중지", "warn")
                 if fresh and os.path.isdir(dest):
@@ -152,18 +169,21 @@ class Syncer(object):
             self._proc = None
             emit_done(self.last_status)
 
-    def _redact(self, text, cred):
-        out = text
-        if cred:
-            out = out.replace("Authorization: Basic {}".format(cred), "Authorization: Basic ***")
-            out = out.replace(cred, "***")
-        return out
+    @staticmethod
+    def _redact(text, pairs):
+        for sensitive, safe in (pairs or []):
+            if sensitive:
+                text = text.replace(sensitive, safe)
+        return text
 
     def _stream(self, cmd, redact=None):
         emit(GIT_STEP, "$ " + self._redact(" ".join(cmd), redact), "verify")
         # 새 세션(프로세스 그룹)으로 띄워 중지 시 자식까지 한 번에 종료 가능하게
+        # GIT_TERMINAL_PROMPT=0: 인증 실패 시 사용자명 프롬프트로 멈추지 않고 즉시 실패
+        env = dict(os.environ)
+        env["GIT_TERMINAL_PROMPT"] = "0"
         popen_kw = dict(stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                        bufsize=1, universal_newlines=True)
+                        bufsize=1, universal_newlines=True, env=env)
         if hasattr(os, "setsid"):
             popen_kw["preexec_fn"] = os.setsid
         try:
