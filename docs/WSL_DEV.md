@@ -46,7 +46,8 @@ chmod +x run_dev.sh
 1. `git URL`, `branch`, `asset_dest`(자산 저장 경로) 입력 → **저장**
 2. **⤓ Clone/Pull** 클릭 → 진행 로그가 우측 로그 패널에 실시간 스트리밍
 3. 완료 시 `files=N rpm=M` 요약 + "저장소 존재" 표시
-4. **■ 중지**: 진행 중인 clone/pull을 즉시 종료. 신규 clone 중지 시 **부분 받은 디렉토리는 자동 정리**.
+4. **■ 중지**: 진행 중인 clone/pull을 즉시 종료(자식 프로세스까지 프로세스 그룹 전체 SIGKILL). 신규 clone 중지 시 **부분 받은 디렉토리는 자동 정리**.
+5. **병렬 진행**: 자산 동기화 중에도 인벤토리/시크릿/연결 확인/설치 실행 등 **다른 작업이 가능**(동기화 중 설치 실행 시엔 자산이 불완전할 수 있다는 경고 표시).
 
 **사설 저장소(id/pw·토큰)**: `사용자` + `비밀번호/토큰` 입력 후 저장.
 - http(s) 저장소에 `Authorization: Basic` 헤더로 전달 → **`.git/config`에 저장 안 됨**, 로그엔 **마스킹**(`***`).
@@ -63,6 +64,8 @@ chmod +x run_dev.sh
 | `real` | `./run_dev.sh` | **기본/고정**. 실제 ansible 실행. 인벤토리 노드 SSH 접근 + ansible 필요 |
 | `check` | `DASHBOARD_MODE=check python3 -m backend.app` | `ansible-playbook --check`(dry-run) |
 | `mock` | `DASHBOARD_MODE=mock python3 -m backend.app` | 시뮬레이션(노드 없이 가짜 로그, 항상 성공) — UI/흐름 개발용 |
+
+**자산 점검(📦)**: ▶ 설치 탭 **📦 자산 점검** → `asset_root`에 플레이북이 요구하는 RPM/파일(`rpm/openjdk/`, `rpm/RMQ/`, `rpm/MariaDB_el8/`, `vcs_conf/*`, `vcs_pkg/*.tar.gz` 등)이 있는지 ✓/✗ 점검. real/check 실행 시엔 **누락이 있으면 실행 전에 막고** 무엇이 없는지 알려줌(시크릿 사전점검과 동일).
 
 **노드 연결 확인(🔌)**: ▶ 설치 탭에서 `대상` 선택 후 **🔌 연결 확인** → 각 노드의 SSH(22) 도달성을 확인.
 - 1차: TCP 22 포트 도달성 — **mock 모드에서도 실제로 확인**(인증·ansible 불필요, 네트워크/방화벽 점검). 결과 `✓/✗`.
@@ -125,6 +128,7 @@ backend/inventory.py    인벤토리 구조화 읽기/쓰기(PyYAML 무의존)
 backend/secrets.py      시크릿(비밀번호) → group_vars/vcs.yml(0600, gitignore)
 backend/files.py        YAML/INI 파일 직접 편집(경로가드·확장자제한·시크릿제외·YAML검사)
 backend/nodecheck.py    노드 연결 확인(TCP22 도달성 + ansible ping)
+backend/assetcheck.py   자산 사전점검(asset_root 의 필수 RPM/파일 존재 확인)
 backend/events.py       공용 이벤트 버스(SSE 브로드캐스트)
 backend/report.py       결과 보고서 엔진(Markdown/HTML, 멱등성·검증 집계)
 backend/pipeline.py     24개 step 정의(단일 진실)

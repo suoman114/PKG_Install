@@ -158,6 +158,7 @@
       <label title="대상 노드 (--limit)">대상 <select id="target"><option value="all">전체(2노드)</option></select></label>
       <label title="각 멱등 step을 2회 실행해 changed=0 검증"><input type="checkbox" id="idem_chk"/>멱등성 2회</label>
       <button onclick="checkNodes()" title="대상 노드 SSH(22) 도달성 확인">🔌 연결 확인</button>
+      <button onclick="checkAssets()" title="asset_root 에 필요한 RPM/파일이 있는지 확인">📦 자산 점검</button>
       <button class="primary" onclick="run('all')">▶ 전체 실행</button>
       <button onclick="run('phase','OS')">OS</button>
       <button onclick="run('phase','PKG')">PKG</button>
@@ -409,6 +410,17 @@ async function checkNodes(){
   const r=await fetch('/api/nodes/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target:target})});
   if(!r.ok){ const e=await r.json(); addLog('⚠ '+(e.error||'연결 확인 실패'),'warn'); }
   else addLog('노드 연결 확인 시작 (대상: '+target+')...','head');
+}
+async function checkAssets(){
+  const d=await (await fetch('/api/assets/check')).json();
+  addLog('📦 자산 점검 (asset_root: '+d.asset_root+')','head');
+  if(!d.root_exists){ addLog('✗ asset_root 경로가 없습니다: '+d.asset_root,'error'); return; }
+  if(!d.items.length){ addLog('점검할 자산 정의가 없습니다.','verify'); return; }
+  d.items.forEach(it=>{
+    addLog((it.ok?'✓ ':'✗ ')+it.path+(it.is_dir?' (디렉토리)':''), it.ok?'verify':'error');
+  });
+  const miss=d.missing.length;
+  addLog(miss?('● 자산 점검: '+miss+'개 누락 — 자산 동기화/복사 필요'):'● 자산 점검: 모두 존재 ✓', miss?'error':'head');
 }
 async function syncGit(){
   await saveGit();

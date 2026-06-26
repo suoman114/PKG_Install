@@ -25,7 +25,7 @@ PHASES = [
 class Step(object):
     def __init__(self, id, phase, name, playbook, depends_on=None,
                  required_vars=None, verify_cmd=None, idempotent=True,
-                 required_secrets=None):
+                 required_secrets=None, required_assets=None):
         self.id = id
         self.phase = phase
         self.name = name
@@ -36,6 +36,8 @@ class Step(object):
         self.idempotent = idempotent
         # 실행에 반드시 필요한 시크릿(group_vars/vcs.yml) — 🔒 시크릿 패널 키와 일치
         self.required_secrets = required_secrets or []
+        # 실행에 필요한 자산(asset_root 기준 상대경로). 끝이 '/' 면 비어있지 않은 디렉토리.
+        self.required_assets = required_assets or []
 
     def to_dict(self):
         return {
@@ -48,6 +50,7 @@ class Step(object):
             "verify_cmd": self.verify_cmd,
             "idempotent": self.idempotent,
             "required_secrets": self.required_secrets,
+            "required_assets": self.required_assets,
         }
 
 
@@ -71,12 +74,15 @@ STEPS = [
     # ---- Phase 2: PKG Install ----
     Step("06", "PKG", "RabbitMQ 설치/설정/계정", "6_RMQ_vcs.yml",
          depends_on=["02"], required_secrets=["rmq_vcm_password"],
+         required_assets=["rpm/RMQ/"],
          verify_cmd="rabbitmqctl list_users | grep vcm"),
     Step("07", "PKG", "OpenJDK 설치", "7_openjdk.yml",
+         required_assets=["rpm/openjdk/"],
          verify_cmd="java -version"),
     Step("08-1", "PKG", "MariaDB 설치 / VCSM DB import", "8-1_mariaDB.yml",
          required_vars=["server_id"],
          required_secrets=["mariadb_root_password", "mariadb_vcsm_password"],
+         required_assets=["rpm/MariaDB_el8/", "vcs_conf/my.cnf"],
          verify_cmd="mysql -uroot -e \"SHOW DATABASES\" | grep VCSM"),
     Step("08-2", "PKG", "MariaDB 로그 권한 / 재기동", "8-2_mariaDB_chown.yml",
          depends_on=["08-1"],
@@ -100,6 +106,12 @@ STEPS = [
     # ---- Phase 2: 앱 패키지 (계정 선행 필요) ----
     Step("11", "PKG", "앱 패키지 배포 / vcapi 설치", "11_vcs_dic.yml",
          depends_on=["09-1", "10-1"],
+         required_assets=[
+             "bash_vcs.tar.gz", "bash_vcweb.tar.gz",
+             "vcs_conf/vcs_script.tar.gz", "vcs_conf/vcweb_script.tar.gz",
+             "vcs_conf/vcs_dic.tar.gz", "vcs_conf/vcweb_dic.tar.gz",
+             "vcs_pkg/vcs_gimhae_pkg.tar.gz", "vcs_pkg/vcs_gimhae_usttif.tar.gz",
+             "vcs_pkg/vcs_oam.tar.gz", "vcs_pkg/vcweb_pkg.tar.gz"],
          verify_cmd="rpm -q vcapi; test -L /home/vcweb/vcweb/REC && echo link-ok"),
 
     # ---- Phase 3: Config Setup ----
@@ -107,6 +119,7 @@ STEPS = [
          depends_on=["09-1"], verify_cmd="crontab -l -u vcs"),
     Step("13", "CFG", "ld.so.conf / setcap / ldconfig", "13_ldconf_el8.yml",
          depends_on=["07"], required_vars=["app_user"],
+         required_assets=["vcs_conf/oam.conf", "vcs_conf/java_el8.conf"],
          verify_cmd="ldconfig -p | grep -i oam || true"),
     Step("14", "CFG", "ramdisk(tmpfs) mount", "14_ramdisk.yml",
          depends_on=["09-1"], required_vars=["ramdisk_size"],
@@ -118,7 +131,8 @@ STEPS = [
          verify_cmd="systemctl is-active vcs vcweb vcapi",
          idempotent=False),
     Step("16", "CFG", "watermark.png 배포", "16_watermark.yml",
-         depends_on=["09-1"], verify_cmd="test -f /home/vcs/REC/watermark.png && echo ok"),
+         depends_on=["09-1"], required_assets=["vcs_conf/watermark.png"],
+         verify_cmd="test -f /home/vcs/REC/watermark.png && echo ok"),
     Step("17", "CFG", "광 NIC ifcfg 생성/활성", "17_get_fibre_nic.yml",
          verify_cmd="ls /etc/sysconfig/network-scripts/ifcfg-* 2>/dev/null", idempotent=False),
     Step("18", "CFG", "광 NIC RX ringbuffer=2047", "18_ringbuffer_conf.yml",
