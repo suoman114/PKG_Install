@@ -40,7 +40,12 @@ state.seed_steps(pipeline.all_step_ids())
 
 @app.route("/")
 def index():
-    return send_from_directory(FRONTEND, "index.html")
+    # 대시보드는 자주 갱신되므로 캐시 금지 → git pull 후 새로고침만 해도 최신 UI 반영
+    resp = send_from_directory(FRONTEND, "index.html")
+    resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
+    return resp
 
 
 @app.route("/api/pipeline")
