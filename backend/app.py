@@ -95,6 +95,28 @@ def run():
     step_ids = _resolve_step_ids(scope, step_id)
     if not step_ids:
         return jsonify({"error": "실행할 step이 없습니다."}), 400
+
+    # 사전 점검: 실제 실행(real/check)에서 필요한 시크릿이 설정됐는지 확인
+    if orchestrator.MODE != "mock":
+        need = []
+        for sid in step_ids:
+            st = pipeline.get_step(sid)
+            for s in (st.required_secrets if st else []):
+                if s not in need:
+                    need.append(s)
+        if need:
+            status = secrets.status()
+            if not status.get("vault"):
+                labels = {k["key"]: k["label"] for k in status["keys"]}
+                isset = {k["key"]: k["set"] for k in status["keys"]}
+                missing = [s for s in need if not isset.get(s)]
+                if missing:
+                    return jsonify({
+                        "error": "필수 시크릿 미설정: {} — ⚙ 설정 → 🔒 시크릿 에서 입력 후 저장하세요.".format(
+                            ", ".join("{}({})".format(labels.get(m, m), m) for m in missing)),
+                        "missing_secrets": missing,
+                    }), 400
+
     orchestrator.runner.start(step_ids, scope, "{}".format(target), idempotency=idempotency)
     return jsonify({"started": step_ids, "scope": scope, "target": target,
                     "idempotency": idempotency})

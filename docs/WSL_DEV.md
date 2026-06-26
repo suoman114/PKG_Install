@@ -103,7 +103,8 @@ chmod +x run_dev.sh
 - 입력한 값만 갱신(빈 칸은 기존 유지). API는 "설정됨" 여부만 반환하고 **값은 노출하지 않음**.
 - 최초 설정: `cp group_vars/vcs.yml.example group_vars/vcs.yml` 후 편집하거나 패널에서 입력.
 - 강화: `ansible-vault encrypt ansible/inventory/group_vars/vcs.yml` (이 경우 패널은 잠금 표시, CLI로 편집).
-- 플레이북에서 평문 비밀번호는 제거됨 → 시크릿 미설정 시 `real`/`check` 실행은 변수 미정의로 실패(의도된 동작).
+- 플레이북에서 평문 비밀번호는 제거됨 → real/check 실행 시 **필요한 시크릿이 없으면 실행 전에 막고** 어떤 시크릿이 필요한지 알려줌(사전 점검). 예: step 00은 `ssh_password`, 08-1은 mariadb root/vcsm 등.
+- ⚠ **비밀번호 SSH는 컨트롤러에 `sshpass` 필요**: `ssh_password`로 처음 접속(플레이북 00)하려면 `yum install -y sshpass`(또는 `apt install sshpass`). 키 교환(00) 후엔 키 인증이라 불필요.
 
 ## 7. 동작 확인 체크리스트
 - [ ] `/` 접속 시 인벤토리 + 자산 동기화 패널 + 4-Phase 보드(24 step) + mode 배지 표시
