@@ -157,7 +157,10 @@ def write_inventory(model):
     for n in nodes:
         lines.append("{} ansible_host={}".format(n["name"].strip(), n["ansible_host"].strip()))
     lines += ["", "[vcs:vars]", "ansible_user={}".format(ansible_user),
-              "asset_root={}".format(asset_root)]
+              "asset_root={}".format(asset_root),
+              # 파이썬 인터프리터 자동탐지(python3 우선). -i 인벤토리로 항상 로드되어
+              # ansible.cfg 로딩 여부와 무관하게 적용된다.
+              "ansible_python_interpreter=auto_silent"]
     for k in GROUP_OPTIONAL:
         v = (group.get(k) or "").strip()
         if v:
