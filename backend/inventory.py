@@ -35,12 +35,12 @@ def _strip_comment(val):
     return val.split("#", 1)[0].strip()
 
 
-GROUP_OPTIONAL = ("ntp_ip1", "ntp_ip2", "ansible_python_interpreter")  # 비어있으면 hosts.ini 에 미기록
+GROUP_OPTIONAL = ("ntp_ip1", "ntp_ip2")  # 비어있으면 hosts.ini 에 미기록
 
 
 def read_inventory():
     group = {"ansible_user": "root", "asset_root": "/root/lter_vcs_gimhae",
-             "ntp_ip1": "", "ntp_ip2": "", "ansible_python_interpreter": ""}
+             "ntp_ip1": "", "ntp_ip2": ""}
     hosts = []  # [(name, ansible_host)]
     if os.path.isfile(HOSTS):
         section = None
