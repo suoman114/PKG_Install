@@ -24,7 +24,8 @@ PHASES = [
 
 class Step(object):
     def __init__(self, id, phase, name, playbook, depends_on=None,
-                 required_vars=None, verify_cmd=None, idempotent=True):
+                 required_vars=None, verify_cmd=None, idempotent=True,
+                 required_secrets=None):
         self.id = id
         self.phase = phase
         self.name = name
@@ -33,6 +34,8 @@ class Step(object):
         self.required_vars = required_vars or []
         self.verify_cmd = verify_cmd
         self.idempotent = idempotent
+        # 실행에 반드시 필요한 시크릿(group_vars/vcs.yml) — 🔒 시크릿 패널 키와 일치
+        self.required_secrets = required_secrets or []
 
     def to_dict(self):
         return {
@@ -44,13 +47,14 @@ class Step(object):
             "required_vars": self.required_vars,
             "verify_cmd": self.verify_cmd,
             "idempotent": self.idempotent,
+            "required_secrets": self.required_secrets,
         }
 
 
 STEPS = [
     # ---- Phase 1: OS Setup ----
     Step("00", "OS", "SSH 키 교환 / SELinux 비활성", "0_auto_pass.yml",
-         required_vars=["ansible_host"],
+         required_vars=["ansible_host"], required_secrets=["ssh_password"],
          verify_cmd="getenforce", idempotent=False),
     Step("01", "OS", "PAM limits (nofile/stack/nproc)", "1_PAM_limits.yml",
          verify_cmd="grep -R 65535 /etc/security/limits.* | head -n1"),
@@ -66,28 +70,30 @@ STEPS = [
 
     # ---- Phase 2: PKG Install ----
     Step("06", "PKG", "RabbitMQ 설치/설정/계정", "6_RMQ_vcs.yml",
-         depends_on=["02"],
+         depends_on=["02"], required_secrets=["rmq_vcm_password"],
          verify_cmd="rabbitmqctl list_users | grep vcm"),
     Step("07", "PKG", "OpenJDK 설치", "7_openjdk.yml",
          verify_cmd="java -version"),
     Step("08-1", "PKG", "MariaDB 설치 / VCSM DB import", "8-1_mariaDB.yml",
          required_vars=["server_id"],
+         required_secrets=["mariadb_root_password", "mariadb_vcsm_password"],
          verify_cmd="mysql -uroot -e \"SHOW DATABASES\" | grep VCSM"),
     Step("08-2", "PKG", "MariaDB 로그 권한 / 재기동", "8-2_mariaDB_chown.yml",
          depends_on=["08-1"],
          verify_cmd="systemctl is-active mariadb"),
     Step("08-3", "PKG", "MariaDB Master-Master 복제(HA)", "8-3_ha_setting.yml",
          depends_on=["08-1"], required_vars=["server_id", "peer_ip"],
+         required_secrets=["replication_password"],
          verify_cmd="mysql -e \"SHOW SLAVE STATUS\\G\" | grep -E 'Slave_IO_Running|Slave_SQL_Running'",
          idempotent=False),
 
     # ---- Phase 3: 계정 (앱패키지 11의 선행) ----
     Step("09-1", "CFG", "vcs 계정/그룹 생성", "9-1_group_vcs.yml",
-         verify_cmd="id vcs"),
+         required_secrets=["vcs_os_password"], verify_cmd="id vcs"),
     Step("09-2", "CFG", "vcs 홈 권한(04755)", "9-2_chmod_vcs.yml",
          depends_on=["09-1"], verify_cmd="stat -c '%U %a' /home/vcs"),
     Step("10-1", "CFG", "vcweb 계정/그룹 생성", "10-1_group_vcweb.yml",
-         verify_cmd="id vcweb"),
+         required_secrets=["vcweb_os_password"], verify_cmd="id vcweb"),
     Step("10-2", "CFG", "vcweb REC 권한(04777)", "10-2_chmod_vcweb.yml",
          depends_on=["10-1"], verify_cmd="stat -c '%U %a' /home/vcweb/vcweb/REC"),
 
