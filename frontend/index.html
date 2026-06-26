@@ -96,6 +96,9 @@
         <input id="g_ntp_ip1" placeholder="ntp_ip1 (폐쇄망 NTP, 선택)" style="max-width:200px"/>
         <input id="g_ntp_ip2" placeholder="ntp_ip2 (선택)" style="max-width:200px"/>
       </div>
+      <div class="gitrow">
+        <input id="g_py_interp" placeholder="ansible_python_interpreter (기본: /usr/bin/python3)"/>
+      </div>
       <div class="githint">asset_root = 플레이북이 자산을 읽는 경로(자산 동기화 asset_dest와 일치). NTP는 폐쇄망 시각서버(04) — 비우면 timezone만 적용.</div>
       <div class="seclabel" id="nodesLabel">등록된 노드</div>
       <div id="nodes"></div>
@@ -275,6 +278,7 @@ async function loadInventory(){
   document.getElementById('g_asset_root').value = g.asset_root||'';
   document.getElementById('g_ntp_ip1').value = g.ntp_ip1||'';
   document.getElementById('g_ntp_ip2').value = g.ntp_ip2||'';
+  document.getElementById('g_py_interp').value = g.ansible_python_interpreter||'';
   renderNodes();
   populateTargets();
   setInvHint((INV.nodes||[]).length + '개 노드 로드됨', '');
@@ -366,7 +370,8 @@ function setInvHint(msg, cls){
 }
 async function saveInventory(){
   INV.group = {ansible_user: val('g_ansible_user')||'root', asset_root: val('g_asset_root'),
-               ntp_ip1: val('g_ntp_ip1'), ntp_ip2: val('g_ntp_ip2')};
+               ntp_ip1: val('g_ntp_ip1'), ntp_ip2: val('g_ntp_ip2'),
+               ansible_python_interpreter: val('g_py_interp')};
   const r=await fetch('/api/inventory',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(INV)});
   const d=await r.json();
   if(!r.ok){
