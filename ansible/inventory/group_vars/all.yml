@@ -1,0 +1,5 @@
+# 모든 노드 공통 변수 — 인벤토리(-i)와 함께 ansible 이 자동 로드한다.
+# (커밋되는 파일이므로 git pull 만 하면 적용 · 대시보드 재시작/인벤토리 저장 불필요)
+#
+# 파이썬 인터프리터 자동탐지: python3 우선, 없으면 폴백(에러 없이 바로 실행).
+ansible_python_interpreter: auto_silent
