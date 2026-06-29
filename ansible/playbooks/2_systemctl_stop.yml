@@ -6,21 +6,12 @@
   - name: Disable cron hour,daily,monthly,yearly  
     shell: "chmod 600  /etc/cron.*/*"
  
-  - name: Remove net-snmp rpm file manually 
-    shell: "rpm -e net-snmp-1:5.7.2-32.el7.x86_64"
-    register: result
-    ignore_errors: True
-    changed_when:
-      - '"is not installed" in result.stderr'
-      - result.rc == 1
-  
-  - name: Remove postfix  rpm file manually 
-    shell: "rpm -e postfix-2:2.10.1-6.el7.x86_64"
-    register: result
-    ignore_errors: True
-    changed_when:
-      - '"is not installed" in result.stderr'
-      - result.rc == 1
+  - name: Remove net-snmp / postfix (버전 무관 · el7/el8 공통 · 없으면 무시)
+    package:
+      name:
+        - net-snmp
+        - postfix
+      state: absent
 
 
 ###########need to use el8 
